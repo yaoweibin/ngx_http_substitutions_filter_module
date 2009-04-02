@@ -1,0 +1,47 @@
+nginx_substitutions_filter
+-------
+
+nginx_substitutions_filter is a filter module which can do both regular 
+expression and fixed string substitutions on response bodies. This module is 
+quite different from the Nginx's Substitution Module. It scans the output 
+chains buffer and matches string line by line, just like Apache's 
+mod_substitute. 
+
+To install, compile nginx with the following option:
+
+  --add-module=/path/to/this/directory
+
+EXAMPLE
+
+  subs_filter_types text/html text/css text/xml;
+  subs_filter http://st(\\d*).example.com http://s.example.com ir;
+  subs_filter http://a.example.com http://s.example.com;
+
+DIRECTIVES
+
+    subs_filter_types
+
+    syntax: subs_filter_types mime-type [mime-type ...]
+    default: subs_filter_types text/html
+    context: http, server, location
+    description: subs_filter_types is used to specify which content types should
+        be checked for subs_filter. The default is only text/html. 
+ 
+
+    subs_filter
+
+    syntax: subs_filter source_str destination_str [gior]
+    default: none
+    context: http, server, location
+    description: subs_filter allows replacing source stringe(regular expression 
+        or fixed) in the nginx response with destination string. Substitution 
+        text may contain variables. More than one substitution rules per 
+        location is supported. 
+        The meaning of the third flags are:
+            g(default): Replace all the match strings.
+            i: Perform a case-insensitive match.
+            o: Just replace the first one.
+            r: The pattern is treated as a regular expression, default is fixed 
+               string.
+
+Questions/patches may be directed to Weibin Yao, yaoweibin@gmail.com.

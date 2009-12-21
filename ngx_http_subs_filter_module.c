@@ -55,8 +55,8 @@ typedef struct {
 
 static ngx_int_t ngx_http_subs_output(ngx_http_request_t *r,
         ngx_http_subs_ctx_t *ctx, ngx_chain_t *in);
-static ngx_int_t ngx_http_sub_body_filter(ngx_http_request_t *r, 
-        ngx_chain_t *in, ngx_http_subs_ctx_t *ctx);
+/*static ngx_int_t ngx_http_subs_body_filter(ngx_http_request_t *r, */
+/*ngx_chain_t *in, ngx_http_subs_ctx_t *ctx);*/
 static char * ngx_http_subs_filter(ngx_conf_t *cf, ngx_command_t *cmd,
         void *conf);
 static char *ngx_http_subs_types(ngx_conf_t *cf, ngx_command_t *cmd,
@@ -381,15 +381,15 @@ static ngx_inline ngx_chain_t *get_chain_previous(
 static ngx_inline ngx_buf_t * insert_shadow_tail(
         ngx_buf_t **p_shadow, ngx_buf_t *tail)
 {
-    ngx_buf_t *b;
+    ngx_buf_t *b, *b_pre = NULL;
 
     if (*p_shadow == NULL){
         *p_shadow = tail;
         return *p_shadow;
     }
-    for(b = (*p_shadow); b; b = b->shadow){}
+
+    for(b = (*p_shadow); b; b_pre = b, b = b->shadow){}
     b = tail;
-    tail->shadow = NULL;
 
     return *p_shadow;
 }
@@ -699,6 +699,9 @@ static ngx_int_t  ngx_http_subs_match(
                 continue;
         }
 
+	
+
+	/*regex substitution*/
         if (pair->regex || pair->insensitive) {
 #if (NGX_PCRE)
 
@@ -771,6 +774,7 @@ static ngx_int_t  ngx_http_subs_match(
 #endif
         }
         else {
+	    /*fixed string substituion*/
             if (pairs_conf[i].once){
                 if (pair->once)
                     break;
@@ -1020,6 +1024,7 @@ static ngx_int_t ngx_http_subs_body_filter(
                         }
                     }
 #endif
+		    ctx->saved = NULL;
                 }
                 else {/*no match*/
                     if (ctx->saved) {
@@ -1045,7 +1050,10 @@ static ngx_int_t ngx_http_subs_body_filter(
                 }
 
                 /*To the end of buffer and not found LF.*/
-                if (ngx_chain_add_copy(tpool, &ctx->line_in, cl) == NGX_ERROR){
+		temp_cl = ngx_alloc_chain_link(tpool);
+		temp_cl->buf = cl->buf;
+		temp_cl->next = NULL;
+                if (ngx_chain_add_copy(tpool, &ctx->line_in, temp_cl) == NGX_ERROR){
                     ngx_log_error(NGX_LOG_ALERT, log, 0, 
                             "subs_filter:ngx_chain_add_copy error.");
                     goto failed;
@@ -1090,39 +1098,44 @@ static ngx_int_t ngx_http_subs_body_filter(
             temp_cl = get_chain_tail(ctx->out);
             b = temp_cl->buf;
             if (b) {
+		ngx_log_debug1(NGX_LOG_DEBUG_HTTP, log, 0,
+			"insert shadow :%p ", b->shadow);
                 insert_shadow_tail(&b->shadow, cl->buf);
             }
             else {
                 b = ngx_pcalloc(r->pool, sizeof(ngx_buf_t));
                 b->shadow = cl->buf;
+		ngx_log_debug1(NGX_LOG_DEBUG_HTTP, log, 0,
+			"insert sync shadow :%p ", b->shadow);
                 b->sync = 1;
             }
 
             b->last_buf = cl->buf->last_buf;
         }
 
-        /*the last chain, copy line_in to saved.*/
-        if (cl->next == NULL) {
-            if (ctx->line_in) {
-                ctx->saved = duplicate_chains(ctx->line_in,
-                        &ctx->free, r->pool);
-                if (ctx->saved == NULL) {
-                    ngx_log_error(NGX_LOG_ALERT, log, 0, 
-                            "subs_filter:duplicate_chains error.");
-                    goto failed;
-                }
-                ctx->line_in = NULL;
-            }
+        /*copy line_in to saved.*/
+	if (ctx->line_in) {
+	    ctx->saved = duplicate_chains(ctx->line_in,
+		    &ctx->free, r->pool);
+	    if (ctx->saved == NULL) {
+		ngx_log_error(NGX_LOG_ALERT, log, 0, 
+			"subs_filter:duplicate_chains error.");
+		goto failed;
+	    }
 
-            if (cl->buf->last_buf){
-                if (ctx->out) {
-                    insert_chain_tail(&ctx->out, ctx->saved);
-                    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, log, 0,
-                            "subs_filter:Lost last linefeed, "
-                            "but output anyway.");
-                }
-            }
-        }
+	    if (cl->next == NULL) {
+		ctx->line_in = NULL;
+	    }
+	}
+
+	if (cl->buf->last_buf){
+	    if (ctx->out) {
+		insert_chain_tail(&ctx->out, ctx->saved);
+		ngx_log_debug0(NGX_LOG_DEBUG_HTTP, log, 0,
+			"subs_filter:Lost last linefeed, "
+			"but output anyway.");
+	    }
+	}
     }
     ctx->in = NULL;
 
@@ -1219,6 +1232,9 @@ static ngx_int_t ngx_http_subs_output(
             ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
                     "clear recursive shadow buff: %p, %p", temp_b, temp_b->shadow);
             temp_b->shadow->pos = temp_b->shadow->last;
+	    if (temp_b->shadow->last_shadow) {
+		break;
+	    }
             temp_b = temp_b->shadow;
         }
 

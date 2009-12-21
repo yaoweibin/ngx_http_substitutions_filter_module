@@ -55,8 +55,6 @@ typedef struct {
 
 static ngx_int_t ngx_http_subs_output(ngx_http_request_t *r,
         ngx_http_subs_ctx_t *ctx, ngx_chain_t *in);
-/*static ngx_int_t ngx_http_subs_body_filter(ngx_http_request_t *r, */
-/*ngx_chain_t *in, ngx_http_subs_ctx_t *ctx);*/
 static char * ngx_http_subs_filter(ngx_conf_t *cf, ngx_command_t *cmd,
         void *conf);
 static char *ngx_http_subs_types(ngx_conf_t *cf, ngx_command_t *cmd,
@@ -604,7 +602,7 @@ static ngx_int_t  buffer_chain_concatenate(
 
 /* Do the substitution by a line.*/
 static ngx_int_t  ngx_http_subs_match(
-        ngx_http_request_t *r, ngx_http_subs_ctx_t *ctx)
+        ngx_http_request_t *r, ngx_http_subs_ctx_t *ctx, ngx_pool_t *temp_pool)
 {
     u_char *buff, *sub_start, *sub_end, *p;
     ngx_chain_t *cl;
@@ -615,7 +613,6 @@ static ngx_int_t  ngx_http_subs_match(
     ngx_int_t   rc = 0;
     ngx_uint_t   i;
     ngx_int_t len;
-    ngx_pool_t  *temp_pool;
     sub_pair_t  *pairs, *pair, *pairs_conf;
     ngx_int_t bytes = 0;
     ngx_str_t line;
@@ -628,14 +625,6 @@ static ngx_int_t  ngx_http_subs_match(
         return -1;
 
     if (ctx->line_in == NULL)
-        return -1;
-
-    /* temp_pool is only existed in this function. It's used 
-     * for the chain 'ctx->line_in's temporary memory 
-     * allocation, and all 'ctx->line_out's memory must 
-     * be allocated with r->pool.*/
-    temp_pool = ngx_create_pool(4096, log);
-    if (temp_pool == NULL)
         return -1;
 
 #if 1
@@ -698,8 +687,6 @@ static ngx_int_t  ngx_http_subs_match(
             if (pair->once)
                 continue;
         }
-
-	
 
 	/*regex substitution*/
         if (pair->regex || pair->insensitive) {
@@ -849,18 +836,9 @@ static ngx_int_t  ngx_http_subs_match(
 
     ngx_log_debug1(NGX_LOG_DEBUG_HTTP, log, 0, "match times: %d ", num);
 
-    if (temp_pool) {
-        ngx_destroy_pool(temp_pool);
-        temp_pool = NULL;
-    }
-
     return num;
 
 failed:
-    if (temp_pool) {
-        ngx_destroy_pool(temp_pool);
-        temp_pool = NULL;
-    }
 
     return -1;
 }
@@ -869,6 +847,7 @@ static ngx_int_t ngx_http_subs_body_filter(
         ngx_http_request_t *r, ngx_chain_t *in)
 {
     u_char                    *p, *nl;
+    size_t                     pool_size;
     ngx_buf_t                 *b = NULL;
     ngx_int_t			      len, rc, bytes; 
     ngx_chain_t               *cl, *temp_cl;
@@ -908,13 +887,27 @@ static ngx_int_t ngx_http_subs_body_filter(
         /* tpool is only existed in this function. It's used 
          * for the chain 'ctx->in's temporary memory 
          * allocation */
-        tpool = ngx_create_pool(4096, r->connection->log);
-        if (tpool == NULL)
-            return ngx_http_next_body_filter(r, in);
 
         if (ngx_chain_add_copy(r->pool, &ctx->in, in) == NGX_ERROR) {
             goto failed;
         }
+
+	pool_size = 0;
+	for (cl = ctx->in; cl; cl = cl->next) {
+	    if (cl->buf) {
+		pool_size += ngx_buf_size(cl->buf);
+		ngx_log_debug3(NGX_LOG_DEBUG_HTTP, log, 0,
+			"subs in buffer: %p , size:%uz, sync:%d", 
+			cl->buf, ngx_buf_size(cl->buf), cl->buf->sync);
+	    }
+	}
+
+
+	pool_size = ngx_align(pool_size, ngx_pagesize) + ngx_pagesize;
+
+        tpool = ngx_create_pool(pool_size, r->connection->log);
+        if (tpool == NULL)
+            return ngx_http_next_body_filter(r, in);
 
         if (ctx->saved) {
 #if 1
@@ -935,15 +928,6 @@ static ngx_int_t ngx_http_subs_body_filter(
     else 
         ctx->in = NULL;
 
-#if 1
-    for (cl = ctx->in; cl; cl = cl->next) {
-        if (cl->buf) {
-            ngx_log_debug3(NGX_LOG_DEBUG_HTTP, log, 0,
-                    "subs in buffer: %p , size:%uz, sync:%d", 
-                    cl->buf, ngx_buf_size(cl->buf), cl->buf->sync);
-        }
-    }
-#endif
 
     for(cl = ctx->in; cl; cl = cl->next){
         b = cl->buf;
@@ -976,7 +960,7 @@ static ngx_int_t ngx_http_subs_body_filter(
                 else
                     ctx->line_in = part_line_in_cl;
 
-                rc = ngx_http_subs_match(r, ctx);
+                rc = ngx_http_subs_match(r, ctx, tpool);
                 ctx->line_in = NULL;
 
                 if (rc < 0) {

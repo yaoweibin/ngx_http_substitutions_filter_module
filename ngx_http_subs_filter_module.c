@@ -17,6 +17,7 @@ typedef struct {
     ngx_flag_t     once;
     ngx_flag_t     regex;
     ngx_flag_t     insensitive;
+    ngx_flag_t     dup_capture;
 
     ngx_str_t      match;
 #if (NGX_PCRE)
@@ -633,9 +634,9 @@ static ngx_int_t  ngx_http_subs_match(
     pairs = (sub_pair_t *) ctx->sub_pairs->elts;
     for (i = 0; i < ctx->sub_pairs->nelts; i++) {
         pair = &pairs[i];
-        if (pair->sub.data == NULL) {
+        if (pair->sub.data == NULL && !pair->dup_capture) {
             if (ngx_http_script_run(r, &pair->sub, pair->sub_lengths->elts, 0, 
-			pair->sub_values->elts) == NULL)
+                        pair->sub_values->elts) == NULL)
             {
                 ngx_log_error(NGX_LOG_ALERT, log, 0,
                         "[subs_filter] ngx_http_script_run error.");
@@ -644,11 +645,11 @@ static ngx_int_t  ngx_http_subs_match(
         }
 
         ngx_log_debug2(NGX_LOG_DEBUG_HTTP, log, 0,
-                "http subs filter start: \"match:%V, sub:%V\"",
-                &pair->match, &pair->sub);
+                "http subs filter start: \"match:%V, sub:%V, dup_capture:%d\"",
+                &pair->match, &pair->sub, pair->dup_capture);
 
         if (temp_in) {
-	    /*After every substitution, rebuild the temp_in to a single buffer.*/
+            /*After every substitution, rebuild the temp_in to a single buffer.*/
             if (chain_buffer_read(temp_in, &buff, &bytes, temp_pool) < 0) {
                 ngx_log_error(NGX_LOG_ALERT, log, 0,
                         "[subs_filter] chain_buffer_read error.");
@@ -662,26 +663,25 @@ static ngx_int_t  ngx_http_subs_match(
             b = create_buffer(buff, bytes, temp_pool);
             if (b == NULL) {
                 goto failed;
-	    }
+            }
             temp_in = NULL;
 
             if ((!pair->regex) && ((ngx_uint_t)bytes < pair->match.len)) {
                 continue;
-	    }
+            }
         }
         else if (b){/*no match last time*/
             b->pos = b->start;
         }
-	else if (b == NULL) {
+        else if (b == NULL) {
             goto failed;
-	}
-
-        if (pair->once){
-            if (pair->matched)
-                continue;
         }
 
-	/*regex substitution*/
+        if (pair->once && pair->matched) {
+            continue;
+        }
+
+        /*regex substitution*/
         if (pair->regex || pair->insensitive) {
 #if (NGX_PCRE)
             if (pair->match_regex == NULL) {
@@ -691,15 +691,14 @@ static ngx_int_t  ngx_http_subs_match(
                 goto failed;
             }
             if (pair->captures == NULL || pair->ncaptures == 0) {
-                pair->ncaptures = OVECCOUNT;
+                pair->ncaptures = (NGX_HTTP_MAX_CAPTURES + 1) * 3;
                 pair->captures = (int *)(ngx_int_t)ngx_palloc(r->pool, 
-                        OVECCOUNT * sizeof(int));
+                        pair->ncaptures * sizeof(int));
             }
 
             while (1) {
-                if (pair->once){
-                    if (pair->matched)
-                        break;
+                if (pair->once && pair->matched) {
+                    break;
                 }
 
                 line.data = b->pos;
@@ -724,6 +723,10 @@ static ngx_int_t  ngx_http_subs_match(
                     goto failed;
                 }
 
+                r->captures = pair->captures;
+                r->ncaptures = pair->ncaptures;
+                r->captures_data = line.data;
+
                 pair->matched = 1;
                 num++;
 
@@ -734,6 +737,16 @@ static ngx_int_t  ngx_http_subs_match(
                 sub_start = b->pos +  pair->captures[0];
                 sub_end = b->pos +  pair->captures[1];
                 len = sub_start - b->pos;
+
+                if (pair->dup_capture) {
+                    if (ngx_http_script_run(r, &pair->sub, pair->sub_lengths->elts, 0, 
+                                pair->sub_values->elts) == NULL)
+                    {
+                        ngx_log_error(NGX_LOG_ALERT, log, 0,
+                                "[subs_filter] ngx_http_script_run error.");
+                        goto failed;
+                    }
+                }
 
                 rc = buffer_chain_concatenate(&temp_in, b->pos, len,
                         &pair->sub, temp_pool);
@@ -754,9 +767,8 @@ static ngx_int_t  ngx_http_subs_match(
         }
         else {
 	    /*fixed string substituion*/
-            if (pair->once){
-                if (pair->matched)
-                    break;
+            if (pair->once && pair->matched) {
+                break;
             }
 
             while((sub_start = memmem(b->pos, bytes, pair->match.data, 
@@ -1237,7 +1249,7 @@ static char * ngx_http_subs_filter( ngx_conf_t *cf,
         ngx_command_t *cmd, void *conf)
 {
     ngx_int_t                   n;
-    ngx_uint_t                  i;
+    ngx_uint_t                  i, mask;
     ngx_str_t                  *value;
     ngx_str_t                  *option;
     sub_pair_t                 *pair;
@@ -1275,6 +1287,11 @@ static char * ngx_http_subs_filter( ngx_conf_t *cf,
 
         if (ngx_http_script_compile(&sc) != NGX_OK) {
             return NGX_CONF_ERROR;
+        }
+
+        /*dirty hacked*/
+        if (sc.captures_mask) {
+            pair->dup_capture = 1;
         }
     }
     else {
@@ -1318,6 +1335,17 @@ static char * ngx_http_subs_filter( ngx_conf_t *cf,
 
             if (pair->match_regex == NULL) {
                 ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "%V", &err);
+                return NGX_CONF_ERROR;
+            }
+
+            n = ngx_regex_capture_count(pair->match_regex);
+
+            mask = ((1 << (n + 1)) - 1);
+            if ( mask < sc.captures_mask ) {
+                ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                        "You want to capture too many regex substrings, more than %d in \"%V\"",
+                        n, &value[2]);
+
                 return NGX_CONF_ERROR;
             }
 #else

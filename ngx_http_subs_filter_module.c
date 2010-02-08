@@ -644,7 +644,7 @@ static ngx_int_t  ngx_http_subs_match(
             }
         }
 
-        ngx_log_debug2(NGX_LOG_DEBUG_HTTP, log, 0,
+        ngx_log_debug3(NGX_LOG_DEBUG_HTTP, log, 0,
                 "http subs filter start: \"match:%V, sub:%V, dup_capture:%d\"",
                 &pair->match, &pair->sub, pair->dup_capture);
 
@@ -766,13 +766,13 @@ static ngx_int_t  ngx_http_subs_match(
 #endif
         }
         else {
-	    /*fixed string substituion*/
+            /*fixed string substituion*/
             if (pair->once && pair->matched) {
                 break;
             }
 
             while((sub_start = memmem(b->pos, bytes, pair->match.data, 
-			    pair->match.len)) != NULL) {
+                            pair->match.len)) != NULL) {
                 pair->matched = 1;
                 num++;
 
@@ -1340,13 +1340,16 @@ static char * ngx_http_subs_filter( ngx_conf_t *cf,
 
             n = ngx_regex_capture_count(pair->match_regex);
 
-            mask = ((1 << (n + 1)) - 1);
-            if ( mask < sc.captures_mask ) {
-                ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
-                        "You want to capture too many regex substrings, more than %d in \"%V\"",
-                        n, &value[2]);
+            if (pair->dup_capture) {
+                mask = ((1 << (n + 1)) - 1);
+                if ( mask < sc.captures_mask ) {
+                    ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                            "You want to capture too many regex substrings,"
+                            " more than %d in \"%V\"",
+                            n, &value[2]);
 
-                return NGX_CONF_ERROR;
+                    return NGX_CONF_ERROR;
+                }
             }
 #else
             ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,

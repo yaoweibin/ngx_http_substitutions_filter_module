@@ -14,7 +14,7 @@ To install, compile nginx with the following option:
 EXAMPLE
 
   subs_filter_types text/html text/css text/xml;
-  subs_filter http://st(\\d*).example.com http://s.example.com ir;
+  subs_filter http://st(\d+).example.com http://$1.example.com ir;
   subs_filter http://a.example.com http://s.example.com;
 
 DIRECTIVES

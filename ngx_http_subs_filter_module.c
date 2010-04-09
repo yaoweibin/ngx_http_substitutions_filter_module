@@ -1,17 +1,18 @@
 
 /*
  * Author: Weibin Yao(yaoweibin@gmail.com)
- * Date: 2009-2-4
- * Version: 0.3
- * Licence:This module may be distributed under the same terms as Nginx itself.
+ * Licence:This module could be distributed under the same terms as Nginx itself.
  */
 
 
 #include <ngx_config.h>
 #include <ngx_core.h>
 #include <ngx_http.h>
+#include <nginx.h>
 
-#define OVECCOUNT 30 
+#ifndef NGX_HTTP_MAX_CAPTURES
+#define NGX_HTTP_MAX_CAPTURES 9
+#endif
 
 typedef struct {
     ngx_flag_t     once;
@@ -67,6 +68,7 @@ static char *ngx_http_subs_merge_conf(ngx_conf_t *cf, void *parent,
         void *child);
 static ngx_int_t ngx_http_subs_filter_init(ngx_conf_t *cf);
 
+ngx_int_t ngx_regex_capture_count(ngx_regex_t *re);
 
 static ngx_command_t  ngx_http_subs_filter_commands[] = {
     { ngx_string("subs_filter"),
@@ -134,10 +136,10 @@ static ngx_int_t ngx_http_subs_header_filter(ngx_http_request_t *r)
 
     /*Don't substitute the compressed content*/
     if (slcf->sub_pairs->nelts == 0
+            || r->header_only
             || r->headers_out.content_type.len == 0
             || r->headers_out.content_length_n == 0 
             || r->headers_out.status != NGX_HTTP_OK
-            || r->header_only
             || (r->headers_out.content_encoding  
                 && r->headers_out.content_encoding->value.len))
     {
@@ -157,6 +159,8 @@ static ngx_int_t ngx_http_subs_header_filter(ngx_http_request_t *r)
     return ngx_http_next_header_filter(r);
 
 found:
+    ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+            "http subs filter header \"%V\"", &r->uri);
 
     /*Everything in ctx is NULL or 0.*/
     ctx = ngx_pcalloc(r->pool, sizeof(ngx_http_subs_ctx_t));
@@ -447,7 +451,7 @@ static ngx_inline void delete_and_free_chain(
 }
 
 static ngx_inline ngx_chain_t *insert_chain_before( ngx_chain_t **p_in, 
-	ngx_chain_t *insert_chain, ngx_chain_t *chain)
+        ngx_chain_t *insert_chain, ngx_chain_t *chain)
 {
     ngx_chain_t *cl;
 
@@ -474,7 +478,7 @@ static ngx_inline ngx_chain_t *insert_chain_before( ngx_chain_t **p_in,
 /* split the chain's buffer, len is the split point, 
  * *p_in is the chain's head*/
 static ngx_inline ngx_chain_t * split_chain( ngx_chain_t *chain,
-       	ngx_int_t len, ngx_chain_t **p_in, ngx_pool_t *pool)
+        ngx_int_t len, ngx_chain_t **p_in, ngx_pool_t *pool)
 {
     ngx_chain_t *cl;
     ngx_buf_t   *b1, *b2;
@@ -506,7 +510,7 @@ static ngx_inline ngx_chain_t * split_chain( ngx_chain_t *chain,
 
 /*read any chain's buffer and copy to *p_buff */
 static ngx_int_t chain_buffer_read( ngx_chain_t *chain, 
-	u_char **p_buff, ngx_int_t *p_len, ngx_pool_t *pool)
+        u_char **p_buff, ngx_int_t *p_len, ngx_pool_t *pool)
 {
     ngx_chain_t *cl;
     u_char *head, *p;
@@ -852,7 +856,7 @@ static ngx_int_t ngx_http_subs_body_filter(
     u_char                    *p, *nl;
     size_t                     pool_size;
     ngx_buf_t                 *b = NULL;
-    ngx_int_t		       len, rc, bytes; 
+    ngx_int_t		           len, rc, bytes; 
     ngx_str_t                  test;
     ngx_log_t                 *log;
     ngx_pool_t                *tpool = NULL;
@@ -866,7 +870,7 @@ static ngx_int_t ngx_http_subs_body_filter(
 
     slcf = ngx_http_get_module_loc_conf(r, ngx_http_subs_filter_module);
     if (slcf == NULL
-	    || slcf->sub_pairs->nelts == 0
+            || slcf->sub_pairs->nelts == 0
             || r->headers_out.content_type.len == 0
             || r->headers_out.content_length_n == 0) {
         return ngx_http_next_body_filter(r, in);
@@ -893,22 +897,22 @@ static ngx_int_t ngx_http_subs_body_filter(
             goto failed;
         }
 
-	pool_size = 0;
-	for (cl = ctx->in; cl; cl = cl->next) {
-	    if (cl->buf) {
-		pool_size += ngx_buf_size(cl->buf);
-		ngx_log_debug3(NGX_LOG_DEBUG_HTTP, log, 0,
-			"subs in buffer: %p, size:%uz, sync:%d", 
-			cl->buf, ngx_buf_size(cl->buf), cl->buf->sync);
-	    }
-	}
+        pool_size = 0;
+        for (cl = ctx->in; cl; cl = cl->next) {
+            if (cl->buf) {
+                pool_size += ngx_buf_size(cl->buf);
+                ngx_log_debug3(NGX_LOG_DEBUG_HTTP, log, 0,
+                        "subs in buffer: %p, size:%uz, sync:%d", 
+                        cl->buf, ngx_buf_size(cl->buf), cl->buf->sync);
+            }
+        }
 
-	pool_size = ngx_align(pool_size, ngx_pagesize) + ngx_pagesize;
+        pool_size = ngx_align(pool_size, ngx_pagesize) + ngx_pagesize;
 
         tpool = ngx_create_pool(pool_size, r->connection->log);
         if (tpool == NULL) {
             goto failed;
-	}
+        }
 
         if (ctx->saved) {
 #if 1
@@ -934,7 +938,7 @@ static ngx_int_t ngx_http_subs_body_filter(
         b = cl->buf;
         if (b == NULL) {
             continue;
-	}
+        }
 
         bytes = b->last - b->pos;
         if (bytes < 0){
@@ -946,6 +950,12 @@ static ngx_int_t ngx_http_subs_body_filter(
             nl = memchr(p, LF, bytes); 
             ngx_log_debug1(NGX_LOG_DEBUG_HTTP, log, 0, "find linefeed :%p", nl);
 
+            if (nl == NULL && cl->buf->last_buf){
+                nl = b->last;
+                ngx_log_debug1(NGX_LOG_DEBUG_HTTP, log, 0, 
+                        "Not find linefeed, but this is the last buffer:%p ", nl);
+            }
+
             if (nl) {
                 len = nl - p + 1;
                 ngx_log_debug2(NGX_LOG_DEBUG_HTTP, log, 0,
@@ -953,7 +963,7 @@ static ngx_int_t ngx_http_subs_body_filter(
                 part_line_in_cl = create_chain_buffer(p, len, tpool);
                 if (part_line_in_cl == NULL) {
                     goto failed;
-		}
+                }
 
                 bytes -= len;
                 p += len;
@@ -963,10 +973,10 @@ static ngx_int_t ngx_http_subs_body_filter(
                 }
                 else {
                     ctx->line_in = part_line_in_cl;
-		}
+                }
 
-		/*do the substitutions with the chain buffers of ctx->line_in*/
-		/*and the output chain buffers is the ctx->line_out*/
+                /*do the substitutions with the chain buffers of ctx->line_in*/
+                /*and the output chain buffers is the ctx->line_out*/
                 rc = ngx_http_subs_match(r, ctx, tpool);
                 ctx->line_in = NULL;
 
@@ -974,11 +984,11 @@ static ngx_int_t ngx_http_subs_body_filter(
                     goto failed;
                 }
                 else if (rc > 0) {
-		    /* Matched at least 1 count*/
+                    /* Matched at least 1 count*/
 
-		    /* ctx->last_pos is the last not matched postion, the chain will
-		     * not be splited until a successful matching. This will reduce 
-		     * the split frequency of the chain. */
+                    /* ctx->last_pos is the last not matched postion, the chain will
+                     * not be splited until a successful matching. This will reduce 
+                     * the split frequency of the chain. */
                     ngx_log_debug1(NGX_LOG_DEBUG_HTTP, log, 0,
                             "Last_pos :%p ", ctx->last_pos);
                     if (ctx->last_pos) {
@@ -1019,10 +1029,10 @@ static ngx_int_t ngx_http_subs_body_filter(
                         }
                     }
 #endif
-		    ctx->saved = NULL;
+                    ctx->saved = NULL;
                 }
                 else {
-		    /*no match*/
+                    /*no match*/
                     if (ctx->saved) {
                         insert_chain_tail(&ctx->out, ctx->saved);
                         ctx->saved = NULL;
@@ -1030,7 +1040,7 @@ static ngx_int_t ngx_http_subs_body_filter(
                     ctx->last_pos = p;
                 }
             } else {
-		/*Not find the linefeed in this chain*/
+                /*Not find the linefeed in this chain*/
                 ngx_log_debug1(NGX_LOG_DEBUG_HTTP, log, 0,
                         "Buffer last, last_pos :%p ", ctx->last_pos);
                 if (ctx->last_pos) {
@@ -1044,9 +1054,9 @@ static ngx_int_t ngx_http_subs_body_filter(
                 }
 
                 /*To the end of buffer and not found LF.*/
-		temp_cl = ngx_alloc_chain_link(tpool);
-		temp_cl->buf = cl->buf;
-		temp_cl->next = NULL;
+                temp_cl = ngx_alloc_chain_link(tpool);
+                temp_cl->buf = cl->buf;
+                temp_cl->next = NULL;
                 if (ngx_chain_add_copy(tpool, &ctx->line_in, temp_cl) == NGX_ERROR){
                     ngx_log_error(NGX_LOG_ALERT, log, 0, 
                             "[subs_filter] ngx_chain_add_copy error.");
@@ -1066,8 +1076,8 @@ static ngx_int_t ngx_http_subs_body_filter(
                 "At chain last, last_pos :%p ", ctx->last_pos);
         if (ctx->last_pos) {
             split_cl = split_chain(cl, 
-		    ctx->last_pos - b->pos,
-		    &ctx->in, r->pool);
+                    ctx->last_pos - b->pos,
+                    &ctx->in, r->pool);
             temp_cl = fetch_chain_buffer(split_cl->buf->pos, 
                     split_cl->buf->last - split_cl->buf->pos, 
                     &ctx->free, r->pool);
@@ -1075,12 +1085,35 @@ static ngx_int_t ngx_http_subs_body_filter(
             ctx->last_pos = 0;
         }
 
-        if (cl->buf->last_buf || ngx_buf_in_memory(cl->buf)) {
-            if (ctx->out == NULL) {
-                ctx->out = create_chain_buffer(NULL, 0, r->pool);
-                ctx->out->buf->sync = 1;
+        /*copy line_in to saved.*/
+        if (ctx->line_in) {
+            ctx->saved = duplicate_chains(ctx->line_in,
+                    &ctx->free, r->pool);
+            if (ctx->saved == NULL) {
+                ngx_log_error(NGX_LOG_ALERT, log, 0, 
+                        "[subs_filter] duplicate_chains error.");
+                goto failed;
             }
-            else if (p == cl->buf->pos) {
+
+            if (cl->next == NULL) {
+                ctx->line_in = NULL;
+            }
+        }
+
+        if (ctx->out == NULL) {
+            ctx->out = create_chain_buffer(NULL, 0, r->pool);
+            ctx->out->buf->sync = 1;
+        }
+
+        if (cl->buf->last_buf){
+            insert_chain_tail(&ctx->out, ctx->saved);
+            ngx_log_debug0(NGX_LOG_DEBUG_HTTP, log, 0,
+                    "[subs_filter] Lost last linefeed, but output anyway.");
+        }
+
+        if (cl->buf->last_buf || ngx_buf_in_memory(cl->buf)) {
+
+            if (p == cl->buf->pos) {
                 /*This buffer don't find the linefeed.*/
                 temp_cl = create_chain_buffer(NULL, 0, r->pool);
                 temp_cl->buf->sync = 1;
@@ -1089,7 +1122,7 @@ static ngx_int_t ngx_http_subs_body_filter(
 
             temp_cl = get_chain_tail(ctx->out);
             b = temp_cl->buf;
-	    /*Add the shadow buffer for freeing after output*/
+            /*Add the shadow buffer for freeing after output*/
             if (b) {
                 insert_shadow_tail(&b->shadow, cl->buf);
             }
@@ -1102,28 +1135,6 @@ static ngx_int_t ngx_http_subs_body_filter(
             b->last_buf = cl->buf->last_buf;
         }
 
-        /*copy line_in to saved.*/
-	if (ctx->line_in) {
-	    ctx->saved = duplicate_chains(ctx->line_in,
-		    &ctx->free, r->pool);
-	    if (ctx->saved == NULL) {
-		ngx_log_error(NGX_LOG_ALERT, log, 0, 
-			"[subs_filter] duplicate_chains error.");
-		goto failed;
-	    }
-
-	    if (cl->next == NULL) {
-		ctx->line_in = NULL;
-	    }
-	}
-
-	if (cl->buf->last_buf){
-	    if (ctx->out) {
-		insert_chain_tail(&ctx->out, ctx->saved);
-		ngx_log_debug0(NGX_LOG_DEBUG_HTTP, log, 0,
-			"[subs_filter] Lost last linefeed, but output anyway.");
-	    }
-	}
     }
     ctx->in = NULL;
 
@@ -1154,27 +1165,28 @@ static ngx_int_t ngx_http_subs_output(
         ngx_chain_t *in)
 {
     size_t        size;
-    ngx_int_t     rc;
+    ngx_int_t     rc, last_chain;
     ngx_buf_t    *b;
     ngx_buf_t    *temp_b;
     ngx_chain_t  *cl;
 
-#if 1
+    last_chain = 0;
     b = NULL;
     for (cl = ctx->out; cl; cl = cl->next) {
-        size = ngx_buf_size(cl->buf);
-        ngx_log_debug3(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
-                "subs out buffer: %p , size:%uz, sync:%d", 
-                cl->buf, size, cl->buf->sync);
-        if (cl->buf == b) {
-            ngx_log_error(NGX_LOG_ALERT, r->connection->log, 0,
-                    "[subs_filter] the same buf was used in sub");
-            ngx_debug_point();
-            return NGX_ERROR;
-        }
+
         b = cl->buf;
+        size = ngx_buf_size(b);
+
+        ngx_log_debug4(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+                "subs out buffer: %p , size:%uz, sync:%d, last_buf:%d", 
+                b, size, b->sync, b->last_buf);
+
+        if (b->last_buf) {
+            last_chain = 1;
+            b->last_buf = 0;
+        }
     }
-#endif
+    b->last_buf = last_chain;
 
     rc = ngx_http_next_body_filter(r, ctx->out);
 
@@ -1215,14 +1227,15 @@ static ngx_int_t ngx_http_subs_output(
         temp_b = b;
         ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
                 "clear shadow buff: %p", b);
+
         while(temp_b->shadow) {
             ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
                     "clear recursive shadow buff: %p, %p", 
-		    temp_b, temp_b->shadow);
+                    temp_b, temp_b->shadow);
             temp_b->shadow->pos = temp_b->shadow->last;
-	    if (temp_b->shadow->last_shadow) {
-		break;
-	    }
+            if (temp_b->shadow->last_shadow) {
+                break;
+            }
             temp_b = temp_b->shadow;
         }
 
@@ -1255,6 +1268,8 @@ static char * ngx_http_subs_filter( ngx_conf_t *cf,
     sub_pair_t                 *pair;
     ngx_http_subs_loc_conf_t   *slcf = conf;
     ngx_http_script_compile_t   sc;
+
+
 
     value = cf->args->elts;
 
@@ -1326,13 +1341,33 @@ static char * ngx_http_subs_filter( ngx_conf_t *cf,
             err.len = NGX_MAX_CONF_ERRSTR;
             err.data = errstr;
 
-            if (pair->insensitive)
+    /* make nginx-0.8.25+ happy */
+#if defined(nginx_version) && nginx_version >= 8025
+            ngx_regex_compile_t   rc;
+
+            rc.pattern = pair->match;
+            rc.pool = cf->pool;
+            rc.err = err; 
+            rc.options = NGX_REGEX_CASELESS;
+
+            if (ngx_regex_compile(&rc) != NGX_OK) {
+                ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "%V", &rc.err);
+                return NGX_CONF_ERROR;
+            }
+
+            pair->match_regex = rc.regex;
+
+#else
+            if (pair->insensitive) {
                 pair->match_regex = ngx_regex_compile(&pair->match,
                         NGX_REGEX_CASELESS, cf->pool, &err);
-            else
+            }
+            else {
                 pair->match_regex = ngx_regex_compile(&pair->match,
                         0, cf->pool, &err);
+            }
 
+#endif
             if (pair->match_regex == NULL) {
                 ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "%V", &err);
                 return NGX_CONF_ERROR;

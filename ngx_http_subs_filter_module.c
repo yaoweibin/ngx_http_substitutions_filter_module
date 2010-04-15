@@ -1057,11 +1057,8 @@ static ngx_int_t ngx_http_subs_body_filter(
                 temp_cl = ngx_alloc_chain_link(tpool);
                 temp_cl->buf = cl->buf;
                 temp_cl->next = NULL;
-                if (ngx_chain_add_copy(tpool, &ctx->line_in, temp_cl) == NGX_ERROR){
-                    ngx_log_error(NGX_LOG_ALERT, log, 0, 
-                            "[subs_filter] ngx_chain_add_copy error.");
-                    goto failed;
-                }
+                insert_chain_tail(&ctx->line_in, temp_cl);
+
                 break;
             }
 

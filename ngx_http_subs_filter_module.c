@@ -253,7 +253,7 @@ static ngx_int_t ngx_http_subs_match_regex_substituion(ngx_http_request_t *r,
 
     ngx_str_t  line;
     ngx_log_t *log;
-    ngx_int_t  rc;
+    ngx_int_t  rc, count = 0;
 
     log = r->connection->log;
 
@@ -300,6 +300,7 @@ static ngx_int_t ngx_http_subs_match_regex_substituion(ngx_http_request_t *r,
         }
 
         pair->matched++;
+        count++;
 
         ngx_log_debug3(NGX_LOG_DEBUG_HTTP, log, 0, 
                 "regex match:%d, start:%d, end:%d ", 
@@ -328,13 +329,13 @@ static ngx_int_t ngx_http_subs_match_regex_substituion(ngx_http_request_t *r,
         b->pos =  b->pos + pair->captures[1];
     }
 
-    return NGX_OK;
+    return count;
 }
 
 static ngx_int_t ngx_http_subs_match_fix_substituion(sub_pair_t *pair, 
         ngx_buf_t *b, ngx_chain_t **p_in, ngx_pool_t *tpool) {
 
-    ngx_int_t    rc;
+    ngx_int_t    rc, count = 0;
     u_char      *sub_start;
 
     while(b->pos < b->last) {
@@ -349,6 +350,7 @@ static ngx_int_t ngx_http_subs_match_fix_substituion(sub_pair_t *pair,
         }
 
         pair->matched++;
+        count++;
 
         rc = buffer_chain_concatenate(p_in, b->pos, sub_start - b->pos,
                 &pair->sub, tpool);
@@ -366,7 +368,7 @@ static ngx_int_t ngx_http_subs_match_fix_substituion(sub_pair_t *pair,
             break;
     }
 
-    return NGX_OK;
+    return count;
 }
 
 /* Do the substitutions by a line.*/
@@ -376,7 +378,7 @@ static ngx_int_t  ngx_http_subs_match(ngx_http_request_t *r, ngx_http_subs_ctx_t
     sub_pair_t  *pairs, *pair;
     ngx_buf_t   *b = NULL;
     ngx_log_t   *log;
-    ngx_int_t    num = 0;
+    ngx_int_t    count = 0, match_count = 0;
     ngx_int_t    rc = 0;
     ngx_uint_t   i;
     ngx_chain_t *cl;
@@ -426,15 +428,15 @@ static ngx_int_t  ngx_http_subs_match(ngx_http_request_t *r, ngx_http_subs_ctx_t
 
         /*regex substitution*/
         if (pair->regex || pair->insensitive) {
-            if (ngx_http_subs_match_regex_substituion(r, pair, b, &temp_in, ctx->tpool)
-                    == NGX_ERROR) {
+            count = ngx_http_subs_match_regex_substituion(r, pair, b, &temp_in, ctx->tpool);
+            if (count == NGX_ERROR) {
                 goto failed;
             }
         }
         else {
             /*fixed string substituion*/
-            if (ngx_http_subs_match_fix_substituion(pair, b, &temp_in, ctx->tpool)
-                    == NGX_ERROR ){
+            count = ngx_http_subs_match_fix_substituion(pair, b, &temp_in, ctx->tpool);
+            if (count == NGX_ERROR ){
                 goto failed;
             }
         }
@@ -453,10 +455,10 @@ static ngx_int_t  ngx_http_subs_match(ngx_http_request_t *r, ngx_http_subs_ctx_t
             }
         }
 
-        num += pair->matched;
+        match_count += count;
     }
 
-    if (num > 0) {
+    if (match_count > 0) {
         if (temp_in) {
             ctx->line_out = duplicate_chains(temp_in, &ctx->free, r->pool);
             if (ctx->line_out == NULL) {
@@ -490,9 +492,9 @@ static ngx_int_t  ngx_http_subs_match(ngx_http_request_t *r, ngx_http_subs_ctx_t
 #endif
     }
 
-    ngx_log_debug1(NGX_LOG_DEBUG_HTTP, log, 0, "match counts: %d ", num);
+    ngx_log_debug1(NGX_LOG_DEBUG_HTTP, log, 0, "match counts: %d ", match_count);
 
-    return num;
+    return match_count;
 
 failed:
     ngx_log_error(NGX_LOG_ERR, log, 0,
@@ -619,16 +621,17 @@ static ngx_int_t ngx_http_subs_body_filter_process_chain(ngx_http_request_t *r,
         return NGX_DECLINED;
     }
 
-    p = b->pos;
     if ((b->last - b->pos) <= 0){
-        return NGX_DECLINED;
+        return NGX_OK;
     }
+
+    p = b->pos;
 
     while (p < b->last) {
         linefeed_p = memchr(p, LF, b->last - p); 
         ngx_log_debug1(NGX_LOG_DEBUG_HTTP, log, 0, "find linefeed :%p", linefeed_p);
 
-        if (linefeed_p == NULL && cl->buf->last_buf){
+        if (linefeed_p == NULL && b->last_buf){
             linefeed_p = b->last;
             ngx_log_debug(NGX_LOG_DEBUG_HTTP, log, 0, 
                     "Not find linefeed, but this is the last buffer");
@@ -686,7 +689,7 @@ static ngx_int_t ngx_http_subs_body_filter_process_chain(ngx_http_request_t *r,
             ngx_http_subs_body_filter_greedy_split_chain(r, ctx, cl);
 
             temp_cl = ngx_alloc_chain_link(ctx->tpool);
-            temp_cl->buf = cl->buf;
+            temp_cl->buf = b;
             temp_cl->next = NULL;
             insert_chain_tail(&ctx->line_in, temp_cl);
 
@@ -694,7 +697,7 @@ static ngx_int_t ngx_http_subs_body_filter_process_chain(ngx_http_request_t *r,
         }
 
         /*There is nothing left in this buffer.*/
-        if (cl->buf->last - p <= 0)
+        if (b->last - p <= 0)
             break;
     }
 

@@ -929,7 +929,7 @@ static ngx_int_t ngx_http_subs_output( ngx_http_request_t *r,
 static ngx_int_t ngx_http_subs_filter_regex_compile(sub_pair_t *pair, 
         ngx_http_script_compile_t *sc, ngx_conf_t *cf)
 {
-    ngx_int_t                   n;
+    ngx_int_t                   n, options;
     ngx_uint_t                  mask;
     ngx_str_t                  *value;
 
@@ -943,6 +943,8 @@ static ngx_int_t ngx_http_subs_filter_regex_compile(sub_pair_t *pair,
     err.len = NGX_MAX_CONF_ERRSTR;
     err.data = errstr;
 
+    options = (pair->insensitive ? NGX_REGEX_CASELESS : 0);
+
     /* make nginx-0.8.25+ happy */
 #if defined(nginx_version) && nginx_version >= 8025
     ngx_regex_compile_t   rc;
@@ -950,7 +952,7 @@ static ngx_int_t ngx_http_subs_filter_regex_compile(sub_pair_t *pair,
     rc.pattern = pair->match;
     rc.pool = cf->pool;
     rc.err = err; 
-    rc.options = NGX_REGEX_CASELESS;
+    rc.options = options;
 
     if (ngx_regex_compile(&rc) != NGX_OK) {
         ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "%V", &rc.err);
@@ -960,15 +962,8 @@ static ngx_int_t ngx_http_subs_filter_regex_compile(sub_pair_t *pair,
     pair->match_regex = rc.regex;
 
 #else
-    if (pair->insensitive) {
-        pair->match_regex = ngx_regex_compile(&pair->match,
-                NGX_REGEX_CASELESS, cf->pool, &err);
-    }
-    else {
-        pair->match_regex = ngx_regex_compile(&pair->match,
-                0, cf->pool, &err);
-    }
-
+    pair->match_regex = ngx_regex_compile(&pair->match,
+            options, cf->pool, &err);
 #endif
     if (pair->match_regex == NULL) {
         ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "%V", &err);

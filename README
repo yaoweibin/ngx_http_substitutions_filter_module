@@ -1,6 +1,8 @@
 nginx_substitutions_filter
 -------
 
+version
+
 nginx_substitutions_filter is a filter module which can do both regular 
 expression and fixed string substitutions on response bodies. This module is 
 quite different from the Nginx's Substitution Module. It scans the output 

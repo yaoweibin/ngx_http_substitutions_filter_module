@@ -951,7 +951,7 @@ static ngx_int_t ngx_http_subs_body_filter(
             ngx_log_debug1(NGX_LOG_DEBUG_HTTP, log, 0, "find linefeed :%p", nl);
 
             if (nl == NULL && cl->buf->last_buf){
-                nl = b->last;
+                nl = b->last - 1;
                 ngx_log_debug1(NGX_LOG_DEBUG_HTTP, log, 0, 
                         "Not find linefeed, but this is the last buffer:%p ", nl);
             }
@@ -1229,12 +1229,16 @@ static ngx_int_t ngx_http_subs_output(
             ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
                     "clear recursive shadow buff: %p, %p", 
                     temp_b, temp_b->shadow);
+
             temp_b->shadow->pos = temp_b->shadow->last;
             if (temp_b->shadow->last_shadow) {
                 break;
             }
+
             temp_b = temp_b->shadow;
         }
+
+        b->shadow = NULL;
 
         ctx->busy = cl->next;
 

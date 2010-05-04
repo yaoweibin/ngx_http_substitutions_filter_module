@@ -11,6 +11,7 @@
 #include <nginx.h>
 #include <ngx_http_chain_buffer.h>
 
+#define SUBS_DEBUG 1
 
 #ifndef NGX_HTTP_MAX_CAPTURES
 #define NGX_HTTP_MAX_CAPTURES 9
@@ -49,15 +50,19 @@ typedef struct {
     ngx_chain_t   *in;
     ngx_chain_t   *out;
     ngx_chain_t   *busy;
+    /*freed by r->pool*/
     ngx_chain_t   *free;
 
+    /*alloced by ctx->tpool*/
     ngx_chain_t   *line_in;
+
+    /*alloced by r->pool*/
     ngx_chain_t   *line_out;
 
     /* save erery chain which does not find the linefeed and match. */
     ngx_chain_t   *saved;
 
-    /* ctx->last_pos is the last not matched postion, the chain will
+    /* last_pos is the last not matched postion, the chain will
      * not be splited until a successful matching. This will reduce 
      * the split frequency of the chain. */
     u_char        *last_pos;
@@ -374,7 +379,6 @@ static ngx_int_t ngx_http_subs_match_fix_substituion(sub_pair_t *pair,
 /* Do the substitutions by a line.*/
 static ngx_int_t  ngx_http_subs_match(ngx_http_request_t *r, ngx_http_subs_ctx_t *ctx)
 {
-    ngx_str_t    line;
     sub_pair_t  *pairs, *pair;
     ngx_buf_t   *b = NULL;
     ngx_log_t   *log;
@@ -386,7 +390,7 @@ static ngx_int_t  ngx_http_subs_match(ngx_http_request_t *r, ngx_http_subs_ctx_t
 
     log = r->connection->log;
 
-#if 1
+#if SUBS_DEBUG
     for (cl = ctx->line_in; cl; cl = cl->next) {
         if (cl->buf) {
             ngx_log_debug2(NGX_LOG_DEBUG_HTTP, log, 0,
@@ -412,7 +416,9 @@ static ngx_int_t  ngx_http_subs_match(ngx_http_request_t *r, ngx_http_subs_ctx_t
         }
 
         temp_in = NULL;
-#if 1
+#if SUBS_DEBUG
+        ngx_str_t    line;
+
         line.data = b->pos;
         line.len = b->last - b->pos;
         ngx_log_debug1(NGX_LOG_DEBUG_HTTP, log, 0, "current line: \"%V\"", &line);
@@ -481,7 +487,7 @@ static ngx_int_t  ngx_http_subs_match(ngx_http_request_t *r, ngx_http_subs_ctx_t
             }
         }
 
-#if 1
+#if SUBS_DEBUG
         for (cl = ctx->line_out; cl; cl = cl->next) {
             if (cl->buf) {
                 ngx_log_debug2(NGX_LOG_DEBUG_HTTP, log, 0,
@@ -545,7 +551,7 @@ static ngx_int_t ngx_http_subs_body_filter_init_context(ngx_http_request_t *r,
         }
 
         if (ctx->saved) {
-#if 1
+#if SUBS_DEBUG
             for (cl = ctx->saved; cl; cl = cl->next) {
                 if (cl->buf) {
                     ngx_log_debug3(NGX_LOG_DEBUG_HTTP, log, 0,
@@ -632,7 +638,7 @@ static ngx_int_t ngx_http_subs_body_filter_process_chain(ngx_http_request_t *r,
         ngx_log_debug1(NGX_LOG_DEBUG_HTTP, log, 0, "find linefeed :%p", linefeed_p);
 
         if (linefeed_p == NULL && b->last_buf){
-            linefeed_p = b->last;
+            linefeed_p = b->last - 1;
             ngx_log_debug(NGX_LOG_DEBUG_HTTP, log, 0, 
                     "Not find linefeed, but this is the last buffer");
         }
@@ -661,7 +667,7 @@ static ngx_int_t ngx_http_subs_body_filter_process_chain(ngx_http_request_t *r,
             }
             else if (rc > 0) {
                 /* Matched at least 1 time*/
-                ctx->saved = NULL;
+                delete_and_free_chain(&ctx->saved, &ctx->free);
 
                 ngx_log_debug1(NGX_LOG_DEBUG_HTTP, log, 0, "Last_pos :%p ", ctx->last_pos);
                 ngx_http_subs_body_filter_greedy_split_chain(r, ctx, cl);
@@ -762,13 +768,7 @@ static ngx_int_t ngx_http_subs_body_filter(ngx_http_request_t *r, ngx_chain_t *i
         if (ngx_buf_in_memory(cl->buf)) {
             temp_cl = get_chain_tail(ctx->out);
             b = temp_cl->buf;
-#if 1
-            while(b->shadow) {
-                ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
-                        "dispaly recursive shadow buff: %p, %p", 
-                        b, b->shadow);
-            }
-#endif
+
             if (b) {
                 insert_shadow_tail(&b->shadow, cl->buf);
             }
@@ -781,6 +781,7 @@ static ngx_int_t ngx_http_subs_body_filter(ngx_http_request_t *r, ngx_chain_t *i
 
         /*copy line_in to saved.*/
         if (ctx->line_in) {
+            delete_and_free_chain(&ctx->saved, &ctx->free);
             ctx->saved = duplicate_chains(ctx->line_in, &ctx->free, r->pool);
             if (ctx->saved == NULL) {
                 ngx_log_error(NGX_LOG_ALERT, log, 0, 
@@ -906,7 +907,7 @@ static ngx_int_t ngx_http_subs_output( ngx_http_request_t *r,
 
     rc = ngx_http_next_body_filter(r, ctx->out);
 
-#if 1
+#if SUBS_DEBUG
     size = 0;
     for (cl = ctx->out; cl; cl = cl->next) {
         size = ngx_buf_size(cl->buf);

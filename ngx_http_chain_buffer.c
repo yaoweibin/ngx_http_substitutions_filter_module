@@ -250,22 +250,27 @@ void delete_and_free_chain(
 {
     ngx_chain_t *cl, *tail;
 
-    if (p_chain == NULL || *p_chain == NULL)
+    if (p_chain == NULL || *p_chain == NULL) {
         return;
+    }
 
     for(cl = *p_chain; cl; cl = cl->next) {
-        if (cl->buf)
+        if (cl->buf) {
             ngx_memzero(cl->buf, sizeof(ngx_buf_t));
+        }
+
         if (cl->next == NULL) {
             tail = cl;
         }
     }
 
-    if (p_free_chain == NULL)
+    if (p_free_chain == NULL) {
         return;
+    }
 
-    if (*p_free_chain == NULL)
+    if (*p_free_chain == NULL) {
         *p_free_chain = *p_chain;
+    }
     else {
         tail->next = *p_free_chain;
         *p_free_chain = *p_chain;

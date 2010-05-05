@@ -1,0 +1,77 @@
+= nginx_substitutions_filter =
+
+''Note: this module is not distributed with the Nginx source. Installation instructions can be found [[#Installation|below]].''
+
+== Description ==
+
+'''nginx_substitutions_filter''' is a filter module which can do both regular expression and fixed string substitutions on response bodies. This module is quite different from the Nginx's native Substitution Module. It scans the output chains buffer and matches string line by line, just like Apache's [http://httpd.apache.org/docs/trunk/mod/mod_substitute.html mod_substitute].
+
+== Example ==
+
+<geshi lang="nginx">
+location / {
+
+    subs_filter_types text/html text/css text/xml;
+    subs_filter st(\d*).example.com $1.example.com ir;
+    subs_filter a.example.com s.example.com;
+
+}
+</geshi>
+
+== Directives ==
+
+* [[#subs_filter_types|subs_filter_types]]
+* [[#subs_filter|subs_filter]]
+
+=== subs_filter_types ===
+
+'''syntax:''' ''subs_filter_types mime-type [mime-types] ''
+
+'''default:''' ''subs_filter_types text/html''
+
+'''context:''' ''http, server, location''
+
+''subs_filter_types'' is used to specify which content types should be checked for ''subs_filter''. The default is only ''text/html''.
+
+=== subs_filter ===
+
+'''syntax:''' ''subs_filter source_str destination_str [gior] ''
+
+'''default:''' ''none''
+
+'''context:''' ''http, server, location''
+
+''subs_filter'' allows replacing source string(regular expression or fixed) in the nginx response with destination string. Substitution text may contain variables. More than one substitution rules per location is supported. The meaning of the third flags are:
+* ''g''(default): Replace all the match strings.
+* ''i'': Perform a case-insensitive match.
+* ''o'': Just replace the first one.
+* ''r'': The pattern is treated as a regular expression, default is fixed string.
+
+=== Installation ===
+
+To install, get the source with subversion:
+
+<code>
+svn checkout http://substitutions4nginx.googlecode.com/svn/trunk/ substitutions4nginx-read-only
+</code>
+
+and then compile nginx with the following option:
+
+<code>
+./configure --add-module=/path/to/module
+</code>
+
+== CHANGES ==
+
+Changes with nginx_substitutions_filter 0.4                                       2009-12-23
+
+*) fix many bugs
+
+Changes with nginx_substitutions_filter 0.3                                       2009-02-04
+
+*) Initial public release
+
+== Reporting a bug ==
+
+Questions/patches may be directed to Weibin Yao, yaoweibin@gmail.com.
+

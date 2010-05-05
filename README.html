@@ -1,0 +1,119 @@
+<?xml version="1.0" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>nginx_substitutions_filter</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<link rev="made" href="mailto:root@localhost" />
+</head>
+
+<body style="background-color: white">
+
+
+<!-- INDEX BEGIN -->
+<div name="index">
+<p><a name="__index__"></a></p>
+
+<ul>
+
+	<li><a href="#nginx_substitutions_filter">nginx_substitutions_filter</a></li>
+	<ul>
+
+		<li><a href="#description">Description</a></li>
+		<li><a href="#example">Example</a></li>
+		<li><a href="#directives">Directives</a></li>
+		<ul>
+
+			<li><a href="#subs_filter_types">subs_filter_types</a></li>
+			<li><a href="#subs_filter">subs_filter</a></li>
+			<li><a href="#installation">Installation</a></li>
+		</ul>
+
+		<li><a href="#changes">CHANGES</a></li>
+		<li><a href="#reporting_a_bug">Reporting a bug</a></li>
+	</ul>
+
+</ul>
+
+<hr name="index" />
+</div>
+<!-- INDEX END -->
+
+<p>
+</p>
+<h1><a name="nginx_substitutions_filter">nginx_substitutions_filter</a></h1>
+<p><em>Note: this module is not distributed with the Nginx source. Installation instructions can be found <a href="#installation">below</a>. </em>&gt;</p>
+<p>
+</p>
+<h2><a name="description">Description</a></h2>
+<p><strong>nginx_substitutions_filter</strong> is a filter module which can do both regular expression and fixed string substitutions on response bodies. This module is quite different from the Nginx's native Substitution Module. It scans the output chains buffer and matches string line by line, just like Apache's mod_substitute (<a href="http://httpd.apache.org/docs/trunk/mod/mod_substitute.html">http://httpd.apache.org/docs/trunk/mod/mod_substitute.html</a>).</p>
+<p>
+</p>
+<h2><a name="example">Example</a></h2>
+<p>location / {</p>
+<pre>
+    subs_filter_types text/html text/css text/xml;
+    subs_filter st(\d*).example.com $1.example.com ir;
+    subs_filter a.example.com s.example.com;</pre>
+<p>}</p>
+<p>
+</p>
+<h2><a name="directives">Directives</a></h2>
+<ul>
+<li>
+<p><a href="#subs_filter_types">subs_filter_types</a></p>
+</li>
+<li>
+<p><a href="#subs_filter">subs_filter</a></p>
+</li>
+</ul>
+<p>
+</p>
+<h3><a name="subs_filter_types">subs_filter_types</a></h3>
+<p><strong>syntax:</strong> <em>subs_filter_types mime-type [mime-types] </em></p>
+<p><strong>default:</strong> <em>subs_filter_types text/html</em></p>
+<p><strong>context:</strong> <em>http, server, location</em></p>
+<p><em>subs_filter_types</em> is used to specify which content types should be checked for <em>subs_filter</em>. The default is only <em>text/html</em>.</p>
+<p>
+</p>
+<h3><a name="subs_filter">subs_filter</a></h3>
+<p><strong>syntax:</strong> <em>subs_filter source_str destination_str [gior] </em></p>
+<p><strong>default:</strong> <em>none</em></p>
+<p><strong>context:</strong> <em>http, server, location</em></p>
+<p><em>subs_filter</em> allows replacing source string(regular expression or fixed) in the nginx response with destination string. Substitution text may contain variables. More than one substitution rules per location is supported. The meaning of the third flags are:</p>
+<ul>
+<li>
+<p><em>g</em>(default): Replace all the match strings.</p>
+</li>
+<li>
+<p><em>i</em>: Perform a case-insensitive match.</p>
+</li>
+<li>
+<p><em>o</em>: Just replace the first one.</p>
+</li>
+<li>
+<p><em>r</em>: The pattern is treated as a regular expression, default is fixed string.</p>
+</li>
+</ul>
+<p>
+</p>
+<h3><a name="installation">Installation</a></h3>
+<p>To install, get the source with subversion:</p>
+<p>svn checkout <a href="http://substitutions4nginx.googlecode.com/svn/trunk/">http://substitutions4nginx.googlecode.com/svn/trunk/</a> substitutions4nginx-read-only</p>
+<p>and then compile nginx with the following option:</p>
+<p>./configure --add-module=/path/to/module</p>
+<p>
+</p>
+<h2><a name="changes">CHANGES</a></h2>
+<p>Changes with nginx_substitutions_filter 0.4                                       2009-12-23</p>
+<p>*) fix many bugs</p>
+<p>Changes with nginx_substitutions_filter 0.3                                       2009-02-04</p>
+<p>*) Initial public release</p>
+<p>
+</p>
+<h2><a name="reporting_a_bug">Reporting a bug</a></h2>
+<p>Questions/patches may be directed to Weibin Yao, <a href="mailto:yaoweibin@gmail.com.">yaoweibin@gmail.com.</a></p>
+
+</body>
+
+</html>

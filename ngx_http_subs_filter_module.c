@@ -1182,8 +1182,11 @@ static ngx_int_t ngx_http_subs_output(
             last_chain = 1;
             b->last_buf = 0;
         }
+
+        if (cl->next == NULL) {
+            b->last_buf = last_chain;
+        }
     }
-    b->last_buf = last_chain;
 
     rc = ngx_http_next_body_filter(r, ctx->out);
 

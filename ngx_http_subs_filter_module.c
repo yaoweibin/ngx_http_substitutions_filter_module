@@ -902,9 +902,13 @@ static ngx_int_t ngx_http_subs_output( ngx_http_request_t *r,
             last_chain = 1;
             b->last_buf = 0;
         }
-    }
-    b->last_buf = last_chain;
 
+        if (cl->next == NULL) {
+            b->last_buf = last_chain;
+        }
+    }
+
+    /*ctx->out may not output all the data, and need output again.*/
     rc = ngx_http_next_body_filter(r, ctx->out);
 
 #if SUBS_DEBUG

@@ -2,6 +2,23 @@
 #ifndef _NGX_HTTP_CHAIN_BUFFER_H_INCLUDED_
 #define _NGX_HTTP_CHAIN_BUFFER_H_INCLUDED_
 
+#include <ngx_config.h>
+#include <ngx_core.h>
+
+
+typedef struct {
+    ngx_buf_t *buf;
+    ngx_queue_t queue;
+} ngx_queue_buf_t;
+
+#define ngx_alloc_queue_buf(pool)  ngx_palloc(pool, sizeof(ngx_buf_t))
+#define ngx_calloc_queue_buf(pool) ngx_pcalloc(pool, sizeof(ngx_buf_t))
+
+ngx_int_t ngx_queue_chain_add_copy(ngx_pool_t *pool, ngx_queue_t *qh, ngx_chain_t *in);
+ngx_int_t ngx_chain_queue_add_copy(ngx_pool_t *pool,  ngx_chain_t **chain, ngx_queue_t *qh);
+
+ngx_buf_t * buffer_append_string(ngx_buf_t *b, u_char *s, size_t len, ngx_pool_t *pool);
+
 ngx_chain_t * get_chain_tail(ngx_chain_t *chain);
 ngx_chain_t * get_chain_previous(ngx_chain_t *in, ngx_chain_t *chain);
 ngx_buf_t * insert_shadow_tail(ngx_buf_t **p_shadow, ngx_buf_t *tail);
@@ -36,8 +53,8 @@ void delete_and_free_chain(ngx_chain_t **p_chain, ngx_chain_t **p_free_chain);
 
 /* split the chain's buffer, len is the split point, 
  * *p_in is the chain's head*/
-ngx_chain_t * split_chain( ngx_chain_t *chain,
-        ngx_int_t len, ngx_chain_t **p_in, ngx_pool_t *pool);
+/*ngx_chain_t * split_chain( ngx_chain_t *chain,*/
+/*ngx_int_t len, ngx_chain_t **p_in, ngx_pool_t *pool);*/
 
 /* fetch a body chain buffer first with *p and len, then fetch a 
  * replacement chain buffer with rep_str, and concatenate the 

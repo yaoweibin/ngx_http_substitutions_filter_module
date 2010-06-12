@@ -4,6 +4,88 @@
 #include <ngx_http.h>
 #include <ngx_http_chain_buffer.h>
 
+ngx_buf_t * buffer_append_string(ngx_buf_t *b, u_char *s, size_t len, ngx_pool_t *pool)
+{
+    u_char     *p;
+    ngx_uint_t capacity, size;
+
+    if (len > (size_t) (b->end - b->last)) {
+
+        capacity = b->end - b->start;
+        capacity *= 1.5;
+        p = ngx_palloc(pool, capacity);
+        if (p == NULL) {
+            return NULL;
+        }
+
+        size = b->last - b->pos;
+        ngx_memcpy(p, b->pos, size);
+
+        b->start = b->pos = p;
+        b->last = p + size;
+        b->end = p + capacity;
+    }
+
+    ngx_memcpy(b->last, s, len);
+    b->last += len;
+
+    return b;
+}
+
+/*copy from chain to queue*/
+ngx_int_t
+ngx_queue_chain_add_copy(ngx_pool_t *pool, ngx_queue_t *qh, ngx_chain_t *in)
+{
+    ngx_queue_buf_t  *qb;
+
+    while (in) {
+        qb = ngx_calloc_queue_buf(pool);
+        if (qb == NULL) {
+            return NGX_ERROR;
+        }
+
+        qb->buf = in->buf;
+        ngx_queue_insert_tail(qh, &qb->queue);
+
+        in = in->next;
+    }
+
+    return NGX_OK;
+}
+
+/*copy from queue to chain*/
+ngx_int_t
+ngx_chain_queue_add_copy(ngx_pool_t *pool,  ngx_chain_t **chain, ngx_queue_t *qh)
+{
+    ngx_chain_t      *cl, **ll;
+    ngx_queue_t      *q;
+    ngx_queue_buf_t  *qb;
+
+    ll = chain;
+
+    for (cl = *chain; cl; cl = cl->next) {
+        ll = &cl->next;
+    }
+
+    for (q = ngx_queue_head(qh); q != ngx_queue_sentinel(qh); q = ngx_queue_next(q)) {
+
+        qb = ngx_queue_data(q, ngx_queue_buf_t, queue);
+
+        cl = ngx_alloc_chain_link(pool);
+        if (cl == NULL) {
+            return NGX_ERROR;
+        }
+
+        cl->buf = qb->buf;
+
+        *ll = cl;
+        ll = &cl->next;
+    }
+
+    *ll = NULL;
+
+    return NGX_OK;
+}
 
 ngx_buf_t * create_buffer(u_char *p, ngx_int_t len, ngx_pool_t *pool)
 {
@@ -178,30 +260,30 @@ ngx_chain_t *get_chain_tail(ngx_chain_t *chain)
     return cl;
 }
 
-ngx_chain_t *get_chain_previous( ngx_chain_t *in, ngx_chain_t *chain)
-{
-    ngx_chain_t *cl;
+/*ngx_chain_t *get_chain_previous( ngx_chain_t *in, ngx_chain_t *chain)*/
+/*{*/
+/*ngx_chain_t *cl;*/
 
-    if (in == NULL)
-        return NULL;
+/*if (in == NULL)*/
+/*return NULL;*/
 
-    if (in == chain)
-        return chain;
+/*if (in == chain)*/
+/*return chain;*/
 
-    if (chain == NULL)
-        return get_chain_tail(in);
+/*if (chain == NULL)*/
+/*return get_chain_tail(in);*/
 
-    for(cl = in; cl->next; cl = cl->next) {
-        if (cl->next == chain)
-            return cl;
-    }
+/*for(cl = in; cl->next; cl = cl->next) {*/
+/*if (cl->next == chain)*/
+/*return cl;*/
+/*}*/
 
-    /*Not found*/
-    if (cl->next == NULL)  
-        return NULL;
+/**//*Not found*/
+/*if (cl->next == NULL)  */
+/*return NULL;*/
 
-    return cl;
-}
+/*return cl;*/
+/*}*/
 
 ngx_buf_t * insert_shadow_tail(ngx_buf_t **p_shadow, ngx_buf_t *tail)
 {
@@ -279,63 +361,63 @@ void delete_and_free_chain(
     *p_chain = NULL;
 }
 
-ngx_chain_t *insert_chain_before( ngx_chain_t **p_in, 
-        ngx_chain_t *insert_chain, ngx_chain_t *chain)
-{
-    ngx_chain_t *cl;
+/*ngx_chain_t *insert_chain_before( ngx_chain_t **p_in, */
+/*ngx_chain_t *insert_chain, ngx_chain_t *chain)*/
+/*{*/
+/*ngx_chain_t *cl;*/
 
-    if (insert_chain == NULL || p_in == NULL || *p_in == NULL)
-        return NULL;
+/*if (insert_chain == NULL || p_in == NULL || *p_in == NULL)*/
+/*return NULL;*/
 
-    cl = get_chain_previous(*p_in, chain);
-    if (cl == NULL)
-        return NULL;
+/*cl = get_chain_previous(*p_in, chain);*/
+/*if (cl == NULL)*/
+/*return NULL;*/
 
-    /*This chain is the head of chains link.*/
-    if (cl == chain) {
-        insert_chain->next = chain;
-        *p_in = insert_chain;
-    }
-    else {
-        cl->next = insert_chain;
-        insert_chain->next = chain;
-    }
+/**//*This chain is the head of chains link.*/
+/*if (cl == chain) {*/
+/*insert_chain->next = chain;*/
+/**p_in = insert_chain;*/
+/*}*/
+/*else {*/
+/*cl->next = insert_chain;*/
+/*insert_chain->next = chain;*/
+/*}*/
 
-    return chain;
-}
+/*return chain;*/
+/*}*/
 
-/* split the chain's buffer, len is the split point, 
- * *p_in is the chain's head*/
-ngx_chain_t * split_chain( ngx_chain_t *chain,
-        ngx_int_t len, ngx_chain_t **p_in, ngx_pool_t *pool)
-{
-    ngx_chain_t *cl;
-    ngx_buf_t   *b1, *b2;
+/**//* split the chain's buffer, len is the split point, */
+/* * *p_in is the chain's head*/
+/*ngx_chain_t * split_chain( ngx_chain_t *chain,*/
+/*ngx_int_t len, ngx_chain_t **p_in, ngx_pool_t *pool)*/
+/*{*/
+/*ngx_chain_t *cl;*/
+/*ngx_buf_t   *b1, *b2;*/
 
-    if (chain == NULL || p_in == NULL || *p_in == NULL ||
-            pool == NULL || len <= 0)
-        return NULL;
+/*if (chain == NULL || p_in == NULL || *p_in == NULL ||*/
+/*pool == NULL || len <= 0)*/
+/*return NULL;*/
 
-    b2 = chain->buf; 
-    if (b2 == NULL || len > ngx_buf_size(chain->buf))
-        return NULL;
+/*b2 = chain->buf; */
+/*if (b2 == NULL || len > ngx_buf_size(chain->buf))*/
+/*return NULL;*/
 
-    cl = create_chain_buffer(b2->pos, len, pool);
-    if (cl == NULL)
-        return NULL;
-    b1 = cl->buf;
-    if (b1 == NULL)
-        return NULL;
+/*cl = create_chain_buffer(b2->pos, len, pool);*/
+/*if (cl == NULL)*/
+/*return NULL;*/
+/*b1 = cl->buf;*/
+/*if (b1 == NULL)*/
+/*return NULL;*/
 
-    insert_chain_before(p_in, cl, chain);
+/*insert_chain_before(p_in, cl, chain);*/
 
-    b2->pos += len;
-    if (b2->pos == b2->last) {
-        b2->sync = 1;
-    }
+/*b2->pos += len;*/
+/*if (b2->pos == b2->last) {*/
+/*b2->sync = 1;*/
+/*}*/
 
-    return cl;
-}
+/*return cl;*/
+/*}*/
 
 /*read any chain's buffer and copy to *p_buff */
 ngx_int_t chain_buffer_read( ngx_chain_t *chain, 

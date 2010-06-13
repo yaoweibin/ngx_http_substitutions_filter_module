@@ -17,6 +17,8 @@ typedef struct {
 ngx_int_t ngx_queue_chain_add_copy(ngx_pool_t *pool, ngx_queue_t *qh, ngx_chain_t *in);
 ngx_int_t ngx_chain_queue_add_copy(ngx_pool_t *pool,  ngx_chain_t **chain, ngx_queue_t *qh);
 
+#define ngx_buffer_init(b) b->pos = b->last = b->start;
+
 ngx_buf_t * buffer_append_string(ngx_buf_t *b, u_char *s, size_t len, ngx_pool_t *pool);
 
 ngx_chain_t * get_chain_tail(ngx_chain_t *chain);

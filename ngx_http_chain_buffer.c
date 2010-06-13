@@ -32,13 +32,48 @@ ngx_buf_t * buffer_append_string(ngx_buf_t *b, u_char *s, size_t len, ngx_pool_t
     return b;
 }
 
+ngx_queue_buf_t *ngx_alloc_queue_buf(ngx_pool_t *pool, ngx_queue_buf_t *free) {
+    ngx_queue_t     *q;
+    ngx_queue_buf_t *qb;
+
+
+    if (ngx_queue_empty(&free->queue)) {
+        qb = ngx_palloc(pool, sizeof(ngx_queue_buf_t));
+    }
+    else {
+        q = ngx_queue_last(&free->queue);
+        ngx_queue_remove(q);
+        qb = ngx_queue_data(q, ngx_queue_buf_t, queue);
+    }
+
+    return qb;
+}
+
+ngx_queue_buf_t *ngx_calloc_queue_buf(ngx_pool_t *pool, ngx_queue_buf_t *free) {
+    ngx_queue_t     *q;
+    ngx_queue_buf_t *qb;
+
+    if (ngx_queue_empty(&free->queue)) {
+        qb = ngx_pcalloc(pool, sizeof(ngx_queue_buf_t));
+    }
+    else {
+        q = ngx_queue_last(&free->queue);
+        ngx_queue_remove(q);
+        qb = ngx_queue_data(q, ngx_queue_buf_t, queue);
+        ngx_memzero(qb, sizeof(ngx_queue_buf_t));
+    }
+
+    return qb;
+}
+
 /*copy from chain to queue*/
-ngx_int_t ngx_queue_chain_add_copy(ngx_pool_t *pool, ngx_queue_t *qh, ngx_chain_t *in)
+ngx_int_t ngx_queue_chain_add_copy(ngx_pool_t *pool, ngx_queue_t *qh, 
+        ngx_chain_t *in, ngx_queue_buf_t *free)
 {
     ngx_queue_buf_t  *qb;
 
     while (in) {
-        qb = ngx_calloc_queue_buf(pool);
+        qb = ngx_calloc_queue_buf(pool, free);
         if (qb == NULL) {
             return NGX_ERROR;
         }
@@ -117,7 +152,7 @@ ngx_chain_t * create_chain_buffer(u_char *p, ngx_int_t len, ngx_pool_t *pool)
         return NULL;
     }
 
-    cl = ngx_palloc(pool, sizeof(ngx_chain_t));
+    cl = ngx_alloc_chain_link(pool);
     if (cl == NULL)
         return NULL;
 
@@ -211,13 +246,13 @@ ngx_chain_t *duplicate_chains(ngx_chain_t *chain, ngx_chain_t **p_free, ngx_pool
 {
     ngx_chain_t *head, *cl, *copy, *last;
 
-    if (chain == NULL)
+    if (chain == NULL) {
         return NULL;
+    }
 
     copy = last = head = NULL;
     for(cl = chain; cl; cl = cl->next) {
         copy = copy_chain_buffer(cl, p_free, pool);
-
         if (copy == NULL) {
             return NULL;
         }
@@ -234,8 +269,10 @@ ngx_chain_t *duplicate_chains(ngx_chain_t *chain, ngx_chain_t **p_free, ngx_pool
             last = copy;
         }
     }
-    if (copy != NULL)
-        copy->next = NULL;
+
+    if (last != NULL) {
+        last->next = NULL;
+    }
 
     return head;
 }

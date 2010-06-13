@@ -52,6 +52,7 @@ typedef struct {
     ngx_chain_t   *busy;
     /*freed by r->pool*/
     ngx_chain_t   *free;
+    ngx_queue_buf_t *free_queue;
 
     /*alloced by ctx->tpool*/
     ngx_chain_t   *line_in;
@@ -176,8 +177,11 @@ static ngx_int_t ngx_http_subs_init_context(ngx_http_request_t *r)
         ngx_memcpy(dst_pair, src_pair + i, sizeof(sub_pair_t));
     }
 
-    ctx->out = ngx_calloc_queue_buf(r->pool);
+    ctx->out = ngx_palloc(r->pool, sizeof(ngx_queue_buf_t));
     ngx_queue_init(&ctx->out->queue);
+
+    ctx->free_queue = ngx_palloc(r->pool, sizeof(ngx_queue_buf_t));
+    ngx_queue_init(&ctx->free_queue->queue);
 
     return NGX_OK;
 }
@@ -615,7 +619,7 @@ static void ngx_http_subs_body_filter_greedy_split_chain(ngx_http_request_t *r,
             return;
         }
 
-        qb = ngx_calloc_queue_buf(r->pool);
+        qb = ngx_alloc_queue_buf(r->pool, ctx->free_queue);
         if (qb == NULL) {
             return;
         }
@@ -685,6 +689,7 @@ static ngx_int_t ngx_http_subs_body_filter_process_chain(ngx_http_request_t *r,
             /*and the output chain buffers is the ctx->line_out*/
             rc = ngx_http_subs_match(r, ctx);
 
+            ngx_free_chain(ctx->tpool, ctx->line_in);
             ctx->line_in = NULL;
 
             if (rc < 0) {
@@ -698,15 +703,19 @@ static ngx_int_t ngx_http_subs_body_filter_process_chain(ngx_http_request_t *r,
                 ngx_http_subs_body_filter_greedy_split_chain(r, ctx, cl);
 
                 if (ctx->line_out) {
-                    ngx_queue_chain_add_copy(r->pool, &ctx->out->queue, ctx->line_out);
+                    ngx_queue_chain_add_copy(r->pool, &ctx->out->queue, 
+                            ctx->line_out, ctx->free_queue);
                     b->pos += len;
+
+                    ngx_free_chain(r->pool, ctx->line_out);
                     ctx->line_out = NULL;
                 }
             }
             else {
                 /*Not match, we will output the saved part of content, */
                 if (ctx->saved) {
-                    ngx_queue_chain_add_copy(r->pool, &ctx->out->queue, ctx->saved);
+                    ngx_queue_chain_add_copy(r->pool, &ctx->out->queue, 
+                            ctx->saved, ctx->free_queue);
                     ctx->saved = NULL;
                 }
 
@@ -784,7 +793,7 @@ static ngx_int_t ngx_http_subs_body_filter(ngx_http_request_t *r, ngx_chain_t *i
         /*NGX_OK*/
 
         if (ngx_queue_empty(&ctx->out->queue)) {
-            qb = ngx_calloc_queue_buf(r->pool);
+            qb = ngx_alloc_queue_buf(r->pool, ctx->free_queue);
             b = create_buffer(NULL, 0, r->pool);
             
             if (qb == NULL || b == NULL) {
@@ -817,8 +826,6 @@ static ngx_int_t ngx_http_subs_body_filter(ngx_http_request_t *r, ngx_chain_t *i
             delete_and_free_chain(&ctx->saved, &ctx->free);
             ctx->saved = duplicate_chains(ctx->line_in, &ctx->free, r->pool);
             if (ctx->saved == NULL) {
-                ngx_log_error(NGX_LOG_ALERT, log, 0, 
-                        "[subs_filter] duplicate_chains error.");
                 goto failed;
             }
         }
@@ -830,7 +837,8 @@ static ngx_int_t ngx_http_subs_body_filter(ngx_http_request_t *r, ngx_chain_t *i
         /*Last chain*/
         if (cl->buf->last_buf){
             if (ctx->saved) {
-                ngx_queue_chain_add_copy(r->pool, &ctx->out->queue, ctx->saved);
+                ngx_queue_chain_add_copy(r->pool, &ctx->out->queue, 
+                        ctx->saved, ctx->free_queue);
                 ngx_log_debug0(NGX_LOG_DEBUG_HTTP, log, 0,
                         "[subs_filter] Lost last linefeed, but output anyway.");
             }
@@ -924,7 +932,8 @@ static ngx_int_t ngx_http_subs_output( ngx_http_request_t *r,
     if (ngx_chain_queue_add_copy(r->pool, &out, &ctx->out->queue) != NGX_OK) {
         return NGX_ERROR;
     }
-    ngx_queue_init(&ctx->out->queue);
+
+    ngx_free_queue(&ctx->free_queue->queue, &ctx->out->queue);
 
     last_chain = 0;
     b = NULL;

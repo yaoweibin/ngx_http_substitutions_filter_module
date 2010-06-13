@@ -11,7 +11,7 @@
 #include <nginx.h>
 #include <ngx_http_chain_buffer.h>
 
-#define SUBS_DEBUG 0
+#define SUBS_DEBUG 1
 
 #ifndef NGX_HTTP_MAX_CAPTURES
 #define NGX_HTTP_MAX_CAPTURES 9
@@ -631,7 +631,7 @@ static void ngx_http_subs_body_filter_greedy_split_chain(ngx_http_request_t *r,
 static ngx_int_t ngx_http_subs_body_filter_process_chain(ngx_http_request_t *r,
         ngx_chain_t *cl) {
 
-    u_char                    *p, *linefeed_p;
+    u_char                    *p, *linefeed;
     ngx_buf_t                 *b = NULL;
     ngx_int_t		           len, rc; 
     ngx_log_t                 *log;
@@ -659,17 +659,17 @@ static ngx_int_t ngx_http_subs_body_filter_process_chain(ngx_http_request_t *r,
     p = b->pos;
 
     while (p < b->last) {
-        linefeed_p = memchr(p, LF, b->last - p); 
-        ngx_log_debug1(NGX_LOG_DEBUG_HTTP, log, 0, "find linefeed :%p", linefeed_p);
+        linefeed = memchr(p, LF, b->last - p); 
+        ngx_log_debug1(NGX_LOG_DEBUG_HTTP, log, 0, "find linefeed :%p", linefeed);
 
-        if (linefeed_p == NULL && b->last_buf){
-            linefeed_p = b->last - 1;
+        if (linefeed == NULL && b->last_buf){
+            linefeed = b->last - 1;
             ngx_log_debug(NGX_LOG_DEBUG_HTTP, log, 0, 
                     "Not find linefeed, but this is the last buffer");
         }
 
-        if (linefeed_p) {
-            len = linefeed_p - p + 1;
+        if (linefeed) {
+            len = linefeed - p + 1;
             ngx_log_debug2(NGX_LOG_DEBUG_HTTP, log, 0, "create line :%p, len:%d ", p, len);
 
             part_line_in_cl = create_chain_buffer(p, len, ctx->tpool);
@@ -722,14 +722,11 @@ static ngx_int_t ngx_http_subs_body_filter_process_chain(ngx_http_request_t *r,
             temp_cl = ngx_alloc_chain_link(ctx->tpool);
             temp_cl->buf = b;
             temp_cl->next = NULL;
+
             insert_chain_tail(&ctx->line_in, temp_cl);
 
             break;
         }
-
-        /*There is nothing left in this buffer.*/
-        if (b->last - p <= 0)
-            break;
     }
 
     ngx_log_debug1(NGX_LOG_DEBUG_HTTP, log, 0, 

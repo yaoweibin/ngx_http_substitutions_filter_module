@@ -24,7 +24,7 @@ location / {
 
 === subs_filter_types ===
 
-`syntax:` _subs_filter_types mime-type`[`mime-types`]`_
+`syntax:` _subs_filter_types mime-type `[`mime-types`]` _
 
 `default:` _subs_filter_types text/html_
 
@@ -34,7 +34,7 @@ _subs_filter_types_ is used to specify which content types should be checked for
 
 === subs_filter ===
 
-`syntax:` _subs_filter source_str destination_str`[`gior`]`_
+`syntax:` _subs_filter source_str destination_str `[`gior`]` _
 
 `default:` _none_
 
@@ -52,6 +52,11 @@ To install, get the source with subversion:
 
 {{{
 svn checkout http://substitutions4nginx.googlecode.com/svn/trunk/ substitutions4nginx-read-only
+}}}
+I have do some refactor and optimizing in the dev branch, you should have a try:
+
+{{{
+svn checkout http://substitutions4nginx.googlecode.com/svn/branches/dev/ substitutions4nginx-dev
 }}}
 and then compile nginx with the following option:
 

@@ -61,6 +61,12 @@ nginx_substitutions_filter
     svn checkout http://substitutions4nginx.googlecode.com/svn/trunk/
     substitutions4nginx-read-only
 
+    I have do some refactor and optimizing in the dev branch, you should
+    have a try:
+
+    svn checkout http://substitutions4nginx.googlecode.com/svn/branches/dev/
+    substitutions4nginx-dev
+
     and then compile nginx with the following option:
 
     ./configure --add-module=/path/to/module

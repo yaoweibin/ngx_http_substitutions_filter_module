@@ -32,7 +32,8 @@ ngx_buf_t * buffer_append_string(ngx_buf_t *b, u_char *s, size_t len, ngx_pool_t
     return b;
 }
 
-ngx_queue_buf_t *ngx_alloc_queue_buf(ngx_pool_t *pool, ngx_queue_buf_t *free) {
+ngx_queue_buf_t *ngx_alloc_queue_buf(ngx_pool_t *pool, ngx_queue_buf_t *free)
+{
     ngx_queue_t     *q;
     ngx_queue_buf_t *qb;
 
@@ -49,7 +50,8 @@ ngx_queue_buf_t *ngx_alloc_queue_buf(ngx_pool_t *pool, ngx_queue_buf_t *free) {
     return qb;
 }
 
-ngx_queue_buf_t *ngx_calloc_queue_buf(ngx_pool_t *pool, ngx_queue_buf_t *free) {
+ngx_queue_buf_t *ngx_calloc_queue_buf(ngx_pool_t *pool, ngx_queue_buf_t *free) 
+{
     ngx_queue_t     *q;
     ngx_queue_buf_t *qb;
 

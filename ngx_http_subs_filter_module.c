@@ -22,7 +22,7 @@ typedef struct {
     ngx_flag_t     regex;
     ngx_flag_t     insensitive;
 
-    /* If it has capture variables */
+    /* If it has capture variables? */
     ngx_flag_t     dup_capture;
 
     ngx_str_t      match;
@@ -48,22 +48,32 @@ typedef struct {
     ngx_array_t   *sub_pairs;  /* array of sub_pair_t*/
 
     ngx_chain_t   *in;
+
+    /* I use queue to store output buffer chain. The reason is that the overhead 
+    of fetching tail chain is too high when there are 1000+ substitutions in chain
+    buffers. */
     ngx_queue_buf_t *out;
+
     ngx_chain_t   *busy;
-    /*freed by r->pool*/
+
+    /*store the freed chain buffers.*/
     ngx_chain_t   *free;
+
+    /*store the freed queue buffers.*/
     ngx_queue_buf_t *free_queue;
 
     /*alloced by ctx->tpool*/
     ngx_chain_t   *line_in;
 
+    /* the temporary buffer to store the line buffer before substitution */
     ngx_buf_t     *line_src;
+    /* the temporary buffer to store the line buffer after substitution */
     ngx_buf_t     *line_dst;
 
     /*alloced by r->pool*/
     ngx_chain_t   *line_out;
 
-    /* save erery chain which does not find the linefeed and match. */
+    /* save every chain which does not find the linefeed */
     ngx_chain_t   *saved;
 
     /* last_pos is the last not matched postion, the chain will
@@ -555,7 +565,7 @@ static ngx_int_t ngx_http_subs_body_filter_init_context(ngx_http_request_t *r,
         pool_size = ngx_align(pool_size, ngx_pagesize) + ngx_pagesize;
 
         /* tpool is only existed in body filter. It's used 
-         * for the chain 'ctx->line_in's temporary memory 
+         * for the chain of 'ctx->line_in's temporary memory 
          * allocation */
         ctx->tpool = ngx_create_pool(pool_size, r->connection->log);
         if (ctx->tpool == NULL) {
@@ -933,7 +943,9 @@ static ngx_int_t ngx_http_subs_output( ngx_http_request_t *r,
         return NGX_ERROR;
     }
 
-    ngx_free_queue(&ctx->free_queue->queue, &ctx->out->queue);
+    if (!ngx_queue_empty(&ctx->out->queue)) {
+        ngx_free_queue(&ctx->free_queue->queue, &ctx->out->queue);
+    }
 
     last_chain = 0;
     b = NULL;

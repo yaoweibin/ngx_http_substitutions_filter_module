@@ -11,7 +11,11 @@
 #include <nginx.h>
 #include <ngx_http_chain_buffer.h>
 
+#if (NGX_DEBUG)
 #define SUBS_DEBUG 1
+#else
+#define SUBS_DEBUG 0
+#endif
 
 #ifndef NGX_HTTP_MAX_CAPTURES
 #define NGX_HTTP_MAX_CAPTURES 9
@@ -396,7 +400,6 @@ static ngx_int_t  ngx_http_subs_match(ngx_http_request_t *r, ngx_http_subs_ctx_t
     ngx_int_t    count = 0, match_count = 0;
     ngx_flag_t   quick = 0;
     ngx_uint_t   i;
-    ngx_pool_t  *pool;
 
     log = r->connection->log;
 
@@ -430,13 +433,6 @@ static ngx_int_t  ngx_http_subs_match(ngx_http_request_t *r, ngx_http_subs_ctx_t
     for (i = 0; i < ctx->sub_pairs->nelts; i++) {
         pair = &pairs[i];
 
-        if (quick) {
-            pool = r->pool;
-        }
-        else {
-            pool = ctx->tpool;
-        }
-
         if (dst->pos != dst->last) {
             temp = b;
             b = dst;
@@ -454,7 +450,7 @@ static ngx_int_t  ngx_http_subs_match(ngx_http_request_t *r, ngx_http_subs_ctx_t
 
         line.data = b->pos;
         line.len = b->last - b->pos;
-        ngx_log_debug1(NGX_LOG_DEBUG_HTTP, log, 0, "current line: \"%V\"", &line);
+        ngx_log_debug1(NGX_LOG_DEBUG_HTTP, log, 0, "current line in: \"%V\"", &line);
 #endif
 
         if ((!pair->regex) && ((ngx_uint_t)(b->last - b->pos) < pair->match.len)) {
@@ -467,14 +463,14 @@ static ngx_int_t  ngx_http_subs_match(ngx_http_request_t *r, ngx_http_subs_ctx_t
 
         /*regex substitution*/
         if (pair->regex || pair->insensitive) {
-            count = ngx_http_subs_match_regex_substituion(r, pair, b, dst, pool);
+            count = ngx_http_subs_match_regex_substituion(r, pair, b, dst, ctx->tpool);
             if (count == NGX_ERROR) {
                 goto failed;
             }
         }
         else {
             /*fixed string substituion*/
-            count = ngx_http_subs_match_fix_substituion(pair, b, dst, pool);
+            count = ngx_http_subs_match_fix_substituion(pair, b, dst, ctx->tpool);
             if (count == NGX_ERROR) {
                 goto failed;
             }
@@ -486,7 +482,7 @@ static ngx_int_t  ngx_http_subs_match(ngx_http_request_t *r, ngx_http_subs_ctx_t
         }
 
         if (b->pos < b->last) {
-            buffer_append_string(dst, b->pos, b->last - b->pos, pool);
+            buffer_append_string(dst, b->pos, b->last - b->pos, ctx->tpool);
             b->pos = b->last;
         }
 
@@ -502,22 +498,16 @@ static ngx_int_t  ngx_http_subs_match(ngx_http_request_t *r, ngx_http_subs_ctx_t
             dst = b;
         }
         
-        if (quick) {
-            ctx->line_out = create_chain_buffer(dst->pos, dst->last - dst->pos, r->pool);
-        }
-        else {
-            ctx->line_out = duplicate_chain_buffer(dst->pos, dst->last - dst->pos, r->pool);
-        }
-
 #if SUBS_DEBUG
-        for (cl = ctx->line_out; cl; cl = cl->next) {
-            if (cl->buf) {
-                ngx_log_debug2(NGX_LOG_DEBUG_HTTP, log, 0,
-                        "line out buffer: %p , size:%uz", 
-                        cl->buf, ngx_buf_size(cl->buf));
-            }
-        }
+        ngx_str_t    line;
+
+        line.data = dst->pos;
+        line.len = dst->last - dst->pos;
+
+        ngx_log_debug1(NGX_LOG_DEBUG_HTTP, log, 0, "current line out: \"%V\"", &line);
 #endif
+
+        ctx->line_out = duplicate_chain_buffer(dst->pos, dst->last - dst->pos, r->pool);
     }
 
     ngx_log_debug1(NGX_LOG_DEBUG_HTTP, log, 0, "match counts: %d ", match_count);

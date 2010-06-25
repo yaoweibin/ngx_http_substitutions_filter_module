@@ -284,16 +284,6 @@ static ngx_int_t ngx_http_subs_match_regex_substituion(ngx_http_request_t *r,
 
     log = r->connection->log;
 
-    if (pair->sub.data == NULL && !pair->dup_capture) {
-        if (ngx_http_script_run(r, &pair->sub, pair->sub_lengths->elts, 0, 
-                    pair->sub_values->elts) == NULL)
-        {
-            ngx_log_error(NGX_LOG_ALERT, log, 0,
-                    "[subs_filter] ngx_http_script_run error.");
-            return NGX_ERROR;
-        }
-    }
-
     if (pair->captures == NULL || pair->ncaptures == 0) {
         pair->ncaptures = (NGX_HTTP_MAX_CAPTURES + 1) * 3;
         pair->captures = (int *)(ngx_int_t)ngx_palloc(r->pool, 
@@ -461,6 +451,14 @@ static ngx_int_t  ngx_http_subs_match(ngx_http_request_t *r, ngx_http_subs_ctx_t
             continue;
         }
 
+        if (pair->sub.data == NULL && !pair->dup_capture) {
+            if (ngx_http_script_run(r, &pair->sub, pair->sub_lengths->elts, 0, 
+                        pair->sub_values->elts) == NULL)
+            {
+                goto failed;
+            }
+        }
+
         /*regex substitution*/
         if (pair->regex || pair->insensitive) {
             count = ngx_http_subs_match_regex_substituion(r, pair, b, dst, ctx->tpool);
@@ -487,7 +485,6 @@ static ngx_int_t  ngx_http_subs_match(ngx_http_request_t *r, ngx_http_subs_ctx_t
         }
 
         /*match*/
-
         match_count += count;
     }
 

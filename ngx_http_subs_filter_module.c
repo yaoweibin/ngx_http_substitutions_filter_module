@@ -423,6 +423,20 @@ static ngx_int_t  ngx_http_subs_match(ngx_http_request_t *r, ngx_http_subs_ctx_t
     for (i = 0; i < ctx->sub_pairs->nelts; i++) {
         pair = &pairs[i];
 
+	if (!pair->dup_capture) {
+	    if (pair->sub.data == NULL) {
+		if (ngx_http_script_run(r, &pair->sub, pair->sub_lengths->elts, 0, 
+			    pair->sub_values->elts) == NULL)
+		{
+		    goto failed;
+		}
+	    }
+	}
+	else {
+	    pair->sub.data = NULL;
+	    pair->sub.len = 0;
+	}
+
         if (dst->pos != dst->last) {
             temp = b;
             b = dst;
@@ -579,7 +593,8 @@ static ngx_int_t ngx_http_subs_body_filter_init_context(ngx_http_request_t *r,
                 }
             }
 #endif
-            if (ngx_chain_add_copy(ctx->tpool, &ctx->line_in, ctx->saved) == NGX_ERROR) {
+            ctx->line_in = duplicate_chains(ctx->saved, NULL, ctx->tpool);
+	    if (ctx->line_in == NULL) {
                 return NGX_ERROR;
             }
         }

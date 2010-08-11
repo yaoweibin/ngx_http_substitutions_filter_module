@@ -53,20 +53,22 @@ typedef struct {
 
     ngx_chain_t   *in;
 
-    /* I use queue to store output buffer chain. The reason is that the overhead 
-    of fetching tail chain is too high when there are 1000+ substitutions in chain
-    buffers. */
+    /* 
+     *  I use queue to store output buffer chain. The reason is that the
+     *  overhead of fetching tail chain is too high when there are 1000+ 
+     *  substitutions in chain buffers. 
+     *  */
     ngx_queue_buf_t *out;
 
     ngx_chain_t   *busy;
 
-    /*store the freed chain buffers.*/
+    /* store the freed chain buffers. */
     ngx_chain_t   *free;
 
-    /*store the freed queue buffers.*/
+    /* store the freed queue buffers. */
     ngx_queue_buf_t *free_queue;
 
-    /*alloced by ctx->tpool*/
+    /* alloced by ctx->tpool */
     ngx_chain_t   *line_in;
 
     /* the temporary buffer to store the line buffer before substitution */
@@ -74,15 +76,17 @@ typedef struct {
     /* the temporary buffer to store the line buffer after substitution */
     ngx_buf_t     *line_dst;
 
-    /*alloced by r->pool*/
+    /* alloced by r->pool */
     ngx_chain_t   *line_out;
 
     /* save every chain which does not find the linefeed */
     ngx_chain_t   *saved;
 
-    /* last_pos is the last not matched postion, the chain will
+    /* 
+     * last_pos is the last not matched postion, the chain will
      * not be splited until a successful matching. This will reduce 
-     * the split frequency of the chain. */
+     * the split frequency of the chain. 
+     * */
     u_char        *last_pos;
 
     ngx_pool_t    *tpool;
@@ -183,7 +187,9 @@ static ngx_http_output_body_filter_pt    ngx_http_next_body_filter;
 
 extern volatile ngx_cycle_t  *ngx_cycle;
 
-static ngx_int_t ngx_http_subs_header_filter(ngx_http_request_t *r)
+
+static ngx_int_t 
+ngx_http_subs_header_filter(ngx_http_request_t *r)
 {
     ngx_str_t                 *type;
     ngx_uint_t                 i;
@@ -233,7 +239,9 @@ found:
     return ngx_http_next_header_filter(r);
 }
 
-static ngx_int_t ngx_http_subs_init_context(ngx_http_request_t *r)
+
+static ngx_int_t
+ngx_http_subs_init_context(ngx_http_request_t *r)
 {
     ngx_uint_t                 i;
     ngx_http_subs_ctx_t       *ctx;
@@ -242,7 +250,7 @@ static ngx_int_t ngx_http_subs_init_context(ngx_http_request_t *r)
 
     slcf = ngx_http_get_module_loc_conf(r, ngx_http_subs_filter_module);
 
-    /*Everything in ctx is NULL or 0.*/
+    /* Everything in ctx is NULL or 0. */
     ctx = ngx_pcalloc(r->pool, sizeof(ngx_http_subs_ctx_t));
     if (ctx == NULL) {
         return NGX_ERROR;
@@ -256,7 +264,7 @@ static ngx_int_t ngx_http_subs_init_context(ngx_http_request_t *r)
         return NGX_ERROR;
     }
 
-    /*Deep copy sub_pairs from slcf to ctx*/
+    /* Deep copy sub_pairs from slcf to ctx */
     src_pair = (sub_pair_t *) slcf->sub_pairs->elts;
     for (i = 0; i < slcf->sub_pairs->nelts; i++) {
         dst_pair = ngx_array_push(ctx->sub_pairs);
@@ -276,7 +284,9 @@ static ngx_int_t ngx_http_subs_init_context(ngx_http_request_t *r)
     return NGX_OK;
 }
 
-static ngx_int_t ngx_http_subs_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
+
+static ngx_int_t 
+ngx_http_subs_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
 {
     ngx_buf_t                 *b = NULL;
     ngx_int_t		           rc; 
@@ -320,7 +330,7 @@ static ngx_int_t ngx_http_subs_body_filter(ngx_http_request_t *r, ngx_chain_t *i
             goto failed;
         }
 
-        /*NGX_OK*/
+        /* NGX_OK */
 
         if (ngx_queue_empty(&ctx->out->queue)) {
             qb = ngx_alloc_queue_buf(r->pool, ctx->free_queue);
@@ -335,7 +345,7 @@ static ngx_int_t ngx_http_subs_body_filter(ngx_http_request_t *r, ngx_chain_t *i
             ngx_queue_insert_tail(&ctx->out->queue, &qb->queue);     
         }
 
-        /*Add the shadow buffer for freeing after output*/
+        /* Add the shadow buffer for freeing after output */
         if (ngx_buf_in_memory(cl->buf)) {
             q = ngx_queue_last(&ctx->out->queue);
             qb = ngx_queue_data(q, ngx_queue_buf_t, queue);
@@ -351,7 +361,7 @@ static ngx_int_t ngx_http_subs_body_filter(ngx_http_request_t *r, ngx_chain_t *i
             }
         }
 
-        /*copy line_in to saved.*/
+        /* copy line_in to saved. */
         if (ctx->line_in) {
             delete_and_free_chain(&ctx->saved, &ctx->free);
             ctx->saved = duplicate_chains(ctx->line_in, &ctx->free, r->pool);
@@ -364,7 +374,7 @@ static ngx_int_t ngx_http_subs_body_filter(ngx_http_request_t *r, ngx_chain_t *i
             continue;
         }
 
-        /*Last chain*/
+        /* Last chain */
         if (cl->buf->last_buf){
             if (ctx->saved) {
                 ngx_queue_chain_add_copy(r->pool, &ctx->out->queue, 
@@ -398,13 +408,15 @@ failed:
 
     ngx_http_subs_body_filter_clean_context(r, ctx);
 
-    ngx_log_error(NGX_LOG_ERR, log, 0, "[subs_filter] ngx_http_subs_body_filter error.");
+    ngx_log_error(NGX_LOG_ERR, log, 0, 
+            "[subs_filter] ngx_http_subs_body_filter error.");
 
     return NGX_ERROR;
 }
 
-static ngx_int_t ngx_http_subs_body_filter_init_context(ngx_http_request_t *r,
-        ngx_chain_t *in) 
+
+static ngx_int_t 
+ngx_http_subs_body_filter_init_context(ngx_http_request_t *r, ngx_chain_t *in) 
 {
     size_t                     pool_size;
     ngx_log_t                 *log;
@@ -436,9 +448,11 @@ static ngx_int_t ngx_http_subs_body_filter_init_context(ngx_http_request_t *r,
 
         pool_size = ngx_align(pool_size, ngx_pagesize) + ngx_pagesize;
 
-        /* tpool is only existed in body filter. It's used 
+        /*
+         * tpool is only existed in body filter. It's used 
          * for the chain of 'ctx->line_in's temporary memory 
-         * allocation */
+         * allocation
+         * */
         ctx->tpool = ngx_create_pool(pool_size, r->connection->log);
         if (ctx->tpool == NULL) {
             return NGX_ERROR;
@@ -474,8 +488,9 @@ static ngx_int_t ngx_http_subs_body_filter_init_context(ngx_http_request_t *r,
     return NGX_OK;
 }
 
-static ngx_int_t ngx_http_subs_body_filter_process_chain(ngx_http_request_t *r,
-        ngx_chain_t *cl)
+
+static ngx_int_t 
+ngx_http_subs_body_filter_process_chain(ngx_http_request_t *r, ngx_chain_t *cl)
 {
     u_char                    *p, *linefeed;
     ngx_buf_t                 *b = NULL;
@@ -527,8 +542,10 @@ static ngx_int_t ngx_http_subs_body_filter_process_chain(ngx_http_request_t *r,
 
             insert_chain_tail(&ctx->line_in, part_line_in_cl);
 
-            /*Do the substitutions with the chain buffers of ctx->line_in*/
-            /*and the output chain buffers is the ctx->line_out*/
+            /*
+             * Do the substitutions with the chain buffers of ctx->line_in
+             * and the output chain buffers is the ctx->line_out
+             * */
             rc = ngx_http_subs_match(r, ctx);
 
             ngx_free_chain(ctx->tpool, ctx->line_in);
@@ -554,7 +571,7 @@ static ngx_int_t ngx_http_subs_body_filter_process_chain(ngx_http_request_t *r,
                 }
             }
             else {
-                /*Not match, we will output the saved part of content, */
+                /* Not match, we will output the saved part of content*/
                 if (ctx->saved) {
                     ngx_queue_chain_add_copy(r->pool, &ctx->out->queue, 
                             ctx->saved, ctx->free_queue);
@@ -564,7 +581,7 @@ static ngx_int_t ngx_http_subs_body_filter_process_chain(ngx_http_request_t *r,
                 ctx->last_pos = p;
             }
         } else {
-            /*Not find the linefeed in this chain*/
+            /* Not find the linefeed in this chain */
             ngx_log_debug1(NGX_LOG_DEBUG_HTTP, log, 0,
                     "Buffer last, last_pos :%p ", ctx->last_pos);
 
@@ -588,8 +605,10 @@ static ngx_int_t ngx_http_subs_body_filter_process_chain(ngx_http_request_t *r,
     return NGX_OK;
 }
 
+
 /* Do the substitutions by a line.*/
-static ngx_int_t  ngx_http_subs_match(ngx_http_request_t *r, ngx_http_subs_ctx_t *ctx)
+static ngx_int_t  
+ngx_http_subs_match(ngx_http_request_t *r, ngx_http_subs_ctx_t *ctx)
 {
     sub_pair_t  *pairs, *pair;
     ngx_buf_t   *b, *src, *dst, *temp;
@@ -630,19 +649,19 @@ static ngx_int_t  ngx_http_subs_match(ngx_http_request_t *r, ngx_http_subs_ctx_t
     for (i = 0; i < ctx->sub_pairs->nelts; i++) {
         pair = &pairs[i];
 
-	if (!pair->dup_capture) {
-	    if (pair->sub.data == NULL) {
-		if (ngx_http_script_run(r, &pair->sub, pair->sub_lengths->elts, 0, 
-			    pair->sub_values->elts) == NULL)
-		{
-		    goto failed;
-		}
-	    }
-	}
-	else {
-	    pair->sub.data = NULL;
-	    pair->sub.len = 0;
-	}
+        if (!pair->dup_capture) {
+            if (pair->sub.data == NULL) {
+                if (ngx_http_script_run(r, &pair->sub, pair->sub_lengths->elts, 0, 
+                            pair->sub_values->elts) == NULL)
+                {
+                    goto failed;
+                }
+            }
+        }
+        else {
+            pair->sub.data = NULL;
+            pair->sub.len = 0;
+        }
 
         if (dst->pos != dst->last) {
             temp = b;
@@ -680,7 +699,7 @@ static ngx_int_t  ngx_http_subs_match(ngx_http_request_t *r, ngx_http_subs_ctx_t
             }
         }
 
-        /*regex substitution*/
+        /* regex substitution */
         if (pair->regex || pair->insensitive) {
             count = ngx_http_subs_match_regex_substituion(r, pair, b, dst, ctx->tpool);
             if (count == NGX_ERROR) {
@@ -688,14 +707,14 @@ static ngx_int_t  ngx_http_subs_match(ngx_http_request_t *r, ngx_http_subs_ctx_t
             }
         }
         else {
-            /*fixed string substituion*/
+            /* fixed string substituion */
             count = ngx_http_subs_match_fix_substituion(pair, b, dst, ctx->tpool);
             if (count == NGX_ERROR) {
                 goto failed;
             }
         }
 
-        /*no match.*/
+        /* no match. */
         if (count == 0){
             continue;
         }
@@ -705,13 +724,13 @@ static ngx_int_t  ngx_http_subs_match(ngx_http_request_t *r, ngx_http_subs_ctx_t
             b->pos = b->last;
         }
 
-        /*match*/
+        /* match */
         match_count += count;
     }
 
     if (match_count > 0) {
 
-        /*no match last time*/
+        /* no match last time */
         if (dst->pos == dst->last){
             dst = b;
         }
@@ -739,11 +758,13 @@ failed:
     return -1;
 }
 
-static ngx_buf_t *ngx_http_subs_match_read_chain_to_buffer(ngx_chain_t *in,
+
+static ngx_buf_t *
+ngx_http_subs_match_read_chain_to_buffer(ngx_chain_t *in,
         ngx_buf_t *b, ngx_pool_t *tpool, ngx_flag_t quick)
 {
     ngx_chain_t *cl;
-    ngx_uint_t  bytes = 0;
+    ngx_uint_t   bytes = 0;
 
     if (in) {
         if (in->next == NULL && quick) {
@@ -764,7 +785,9 @@ static ngx_buf_t *ngx_http_subs_match_read_chain_to_buffer(ngx_chain_t *in,
     return b;
 }
 
-static ngx_int_t ngx_http_subs_match_regex_substituion(ngx_http_request_t *r,
+
+static ngx_int_t 
+ngx_http_subs_match_regex_substituion(ngx_http_request_t *r,
         sub_pair_t *pair, ngx_buf_t *b, ngx_buf_t *dst, ngx_pool_t *tpool) 
 {
     ngx_str_t  line;
@@ -835,7 +858,9 @@ static ngx_int_t ngx_http_subs_match_regex_substituion(ngx_http_request_t *r,
     return count;
 }
 
-static ngx_int_t ngx_http_subs_match_fix_substituion(sub_pair_t *pair, 
+
+static ngx_int_t
+ngx_http_subs_match_fix_substituion(sub_pair_t *pair, 
         ngx_buf_t *b, ngx_buf_t *dst, ngx_pool_t *tpool)
 {
     ngx_int_t    count = 0;
@@ -870,7 +895,9 @@ static ngx_int_t ngx_http_subs_match_fix_substituion(sub_pair_t *pair,
     return count;
 }
 
-static void ngx_http_subs_body_filter_greedy_split_chain(ngx_http_request_t *r,
+
+static void 
+ngx_http_subs_body_filter_greedy_split_chain(ngx_http_request_t *r,
         ngx_http_subs_ctx_t *ctx, ngx_chain_t *cl)
 {
     ngx_buf_t                 *b, *nb;
@@ -897,7 +924,9 @@ static void ngx_http_subs_body_filter_greedy_split_chain(ngx_http_request_t *r,
     }
 }
 
-static void ngx_http_subs_body_filter_clean_context(ngx_http_request_t *r,
+
+static void 
+ngx_http_subs_body_filter_clean_context(ngx_http_request_t *r,
         ngx_http_subs_ctx_t *ctx)
 {
     ctx->in = NULL;
@@ -913,7 +942,9 @@ static void ngx_http_subs_body_filter_clean_context(ngx_http_request_t *r,
     }
 }
 
-static ngx_int_t ngx_http_subs_output( ngx_http_request_t *r,
+
+static ngx_int_t
+ngx_http_subs_output( ngx_http_request_t *r,
         ngx_http_subs_ctx_t *ctx, ngx_chain_t *in)
 {
     size_t        size;
@@ -973,7 +1004,9 @@ static ngx_int_t ngx_http_subs_output( ngx_http_request_t *r,
     return rc;
 }
 
-static void ngx_http_subs_output_free_chain(ngx_http_subs_ctx_t *ctx)
+
+static void 
+ngx_http_subs_output_free_chain(ngx_http_subs_ctx_t *ctx)
 {
     ngx_buf_t    *b;
     ngx_buf_t    *temp_b;
@@ -1021,7 +1054,9 @@ static void ngx_http_subs_output_free_chain(ngx_http_subs_ctx_t *ctx)
     }
 }
 
-static char * ngx_http_subs_filter( ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+
+static char * 
+ngx_http_subs_filter( ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 {
     ngx_int_t                   n;
     ngx_uint_t                  i;
@@ -1103,7 +1138,9 @@ static char * ngx_http_subs_filter( ngx_conf_t *cf, ngx_command_t *cmd, void *co
     return NGX_CONF_OK;
 }
 
-static ngx_int_t ngx_http_subs_filter_regex_compile(sub_pair_t *pair, 
+
+static ngx_int_t 
+ngx_http_subs_filter_regex_compile(sub_pair_t *pair, 
         ngx_http_script_compile_t *sc, ngx_conf_t *cf)
 {
     ngx_int_t                   n, options;
@@ -1171,7 +1208,9 @@ static ngx_int_t ngx_http_subs_filter_regex_compile(sub_pair_t *pair,
     return NGX_OK;
 }
 
-static char * ngx_http_subs_types( ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+
+static char *
+ngx_http_subs_types( ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 {
     ngx_str_t                *value, *type;
     ngx_uint_t                i;
@@ -1218,7 +1257,9 @@ static char * ngx_http_subs_types( ngx_conf_t *cf, ngx_command_t *cmd, void *con
     return NGX_CONF_OK;
 }
 
-static void * ngx_http_subs_create_conf(ngx_conf_t *cf)
+
+static void *
+ngx_http_subs_create_conf(ngx_conf_t *cf)
 {
     ngx_http_subs_loc_conf_t  *slcf;
 
@@ -1230,7 +1271,9 @@ static void * ngx_http_subs_create_conf(ngx_conf_t *cf)
     return slcf;
 }
 
-static char * ngx_http_subs_merge_conf(ngx_conf_t *cf, void *parent, void *child)
+
+static char * 
+ngx_http_subs_merge_conf(ngx_conf_t *cf, void *parent, void *child)
 {
     ngx_http_subs_loc_conf_t *prev = parent;
     ngx_http_subs_loc_conf_t *conf = child;
@@ -1272,7 +1315,9 @@ static char * ngx_http_subs_merge_conf(ngx_conf_t *cf, void *parent, void *child
     return NGX_CONF_OK;
 }
 
-static ngx_int_t ngx_http_subs_filter_init(ngx_conf_t *cf)
+
+static ngx_int_t
+ngx_http_subs_filter_init(ngx_conf_t *cf)
 {
     ngx_http_next_header_filter = ngx_http_top_header_filter;
     ngx_http_top_header_filter = ngx_http_subs_header_filter;

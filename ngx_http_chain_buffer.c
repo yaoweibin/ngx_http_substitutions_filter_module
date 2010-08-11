@@ -4,7 +4,9 @@
 #include <ngx_http.h>
 #include <ngx_http_chain_buffer.h>
 
-ngx_buf_t * buffer_append_string(ngx_buf_t *b, u_char *s, size_t len, ngx_pool_t *pool)
+
+ngx_buf_t * 
+buffer_append_string(ngx_buf_t *b, u_char *s, size_t len, ngx_pool_t *pool)
 {
     u_char     *p;
     ngx_uint_t capacity, size;
@@ -32,7 +34,9 @@ ngx_buf_t * buffer_append_string(ngx_buf_t *b, u_char *s, size_t len, ngx_pool_t
     return b;
 }
 
-ngx_queue_buf_t *ngx_alloc_queue_buf(ngx_pool_t *pool, ngx_queue_buf_t *free)
+
+ngx_queue_buf_t *
+ngx_alloc_queue_buf(ngx_pool_t *pool, ngx_queue_buf_t *free)
 {
     ngx_queue_t     *q;
     ngx_queue_buf_t *qb;
@@ -50,7 +54,9 @@ ngx_queue_buf_t *ngx_alloc_queue_buf(ngx_pool_t *pool, ngx_queue_buf_t *free)
     return qb;
 }
 
-ngx_queue_buf_t *ngx_calloc_queue_buf(ngx_pool_t *pool, ngx_queue_buf_t *free) 
+
+ngx_queue_buf_t *
+ngx_calloc_queue_buf(ngx_pool_t *pool, ngx_queue_buf_t *free) 
 {
     ngx_queue_t     *q;
     ngx_queue_buf_t *qb;
@@ -69,7 +75,8 @@ ngx_queue_buf_t *ngx_calloc_queue_buf(ngx_pool_t *pool, ngx_queue_buf_t *free)
 }
 
 /*copy from chain to queue*/
-ngx_int_t ngx_queue_chain_add_copy(ngx_pool_t *pool, ngx_queue_t *qh, 
+ngx_int_t 
+ngx_queue_chain_add_copy(ngx_pool_t *pool, ngx_queue_t *qh, 
         ngx_chain_t *in, ngx_queue_buf_t *free)
 {
     ngx_queue_buf_t  *qb;
@@ -89,8 +96,10 @@ ngx_int_t ngx_queue_chain_add_copy(ngx_pool_t *pool, ngx_queue_t *qh,
     return NGX_OK;
 }
 
+
 /*copy from queue to chain*/
-ngx_int_t ngx_chain_queue_add_copy(ngx_pool_t *pool,  ngx_chain_t **chain, ngx_queue_t *qh)
+ngx_int_t 
+ngx_chain_queue_add_copy(ngx_pool_t *pool,  ngx_chain_t **chain, ngx_queue_t *qh)
 {
     ngx_chain_t      *cl, **ll;
     ngx_queue_t      *q;
@@ -122,7 +131,9 @@ ngx_int_t ngx_chain_queue_add_copy(ngx_pool_t *pool,  ngx_chain_t **chain, ngx_q
     return NGX_OK;
 }
 
-ngx_buf_t * create_buffer(u_char *p, ngx_int_t len, ngx_pool_t *pool)
+
+ngx_buf_t * 
+create_buffer(u_char *p, ngx_int_t len, ngx_pool_t *pool)
 {
     ngx_buf_t   *b;
 
@@ -144,7 +155,9 @@ ngx_buf_t * create_buffer(u_char *p, ngx_int_t len, ngx_pool_t *pool)
     return b;
 }
 
-ngx_chain_t * create_chain_buffer(u_char *p, ngx_int_t len, ngx_pool_t *pool)
+
+ngx_chain_t * 
+create_chain_buffer(u_char *p, ngx_int_t len, ngx_pool_t *pool)
 {
     ngx_chain_t *cl;
     ngx_buf_t   *b;
@@ -164,7 +177,9 @@ ngx_chain_t * create_chain_buffer(u_char *p, ngx_int_t len, ngx_pool_t *pool)
     return cl;
 }
 
-ngx_chain_t *duplicate_chain_buffer(u_char *src, ngx_int_t len, ngx_pool_t *pool)
+
+ngx_chain_t *
+duplicate_chain_buffer(u_char *src, ngx_int_t len, ngx_pool_t *pool)
 {
     u_char *dst;
 
@@ -178,9 +193,11 @@ ngx_chain_t *duplicate_chain_buffer(u_char *src, ngx_int_t len, ngx_pool_t *pool
     return create_chain_buffer(dst, len, pool);
 }
 
+
 /* Fetch a chain buffer, if *p_free is NULL, then create it, 
  * If not, allocates the head chain of *p_free for it.*/
-ngx_chain_t * fetch_chain_buffer(u_char *p, ngx_int_t len, ngx_chain_t **p_free, ngx_pool_t *pool)
+ngx_chain_t *
+fetch_chain_buffer(u_char *p, ngx_int_t len, ngx_chain_t **p_free, ngx_pool_t *pool)
 {
     ngx_buf_t   *b;
     ngx_chain_t *cl;
@@ -214,8 +231,10 @@ ngx_chain_t * fetch_chain_buffer(u_char *p, ngx_int_t len, ngx_chain_t **p_free,
     }
 }
 
+
 /* Deep copy the chain's buffer and fetch a chain and buffer*/
-ngx_chain_t *copy_chain_buffer(ngx_chain_t *chain, ngx_chain_t **p_free, ngx_pool_t *pool)
+ngx_chain_t *
+copy_chain_buffer(ngx_chain_t *chain, ngx_chain_t **p_free, ngx_pool_t *pool)
 {
     u_char      *p = NULL;
     ngx_buf_t   *b = NULL;
@@ -243,8 +262,10 @@ ngx_chain_t *copy_chain_buffer(ngx_chain_t *chain, ngx_chain_t **p_free, ngx_poo
     return cl;
 }
 
+
 /* Deep copy chains, return the duplicate chains*/
-ngx_chain_t *duplicate_chains(ngx_chain_t *chain, ngx_chain_t **p_free, ngx_pool_t *pool)
+ngx_chain_t *
+duplicate_chains(ngx_chain_t *chain, ngx_chain_t **p_free, ngx_pool_t *pool)
 {
     ngx_chain_t *head, *cl, *copy, *last;
 
@@ -279,7 +300,9 @@ ngx_chain_t *duplicate_chains(ngx_chain_t *chain, ngx_chain_t **p_free, ngx_pool
     return head;
 }
 
-ngx_chain_t *get_chain_tail(ngx_chain_t *chain)
+
+ngx_chain_t *
+get_chain_tail(ngx_chain_t *chain)
 {
     ngx_chain_t *cl;
 
@@ -288,7 +311,9 @@ ngx_chain_t *get_chain_tail(ngx_chain_t *chain)
     return cl;
 }
 
-ngx_buf_t * insert_shadow_tail(ngx_buf_t **p_shadow, ngx_buf_t *tail)
+
+ngx_buf_t * 
+insert_shadow_tail(ngx_buf_t **p_shadow, ngx_buf_t *tail)
 {
     ngx_buf_t *b;
 
@@ -308,7 +333,9 @@ ngx_buf_t * insert_shadow_tail(ngx_buf_t **p_shadow, ngx_buf_t *tail)
     return *p_shadow;
 }
 
-ngx_chain_t * insert_chain_tail(ngx_chain_t **p_chain, ngx_chain_t *tail)
+
+ngx_chain_t * 
+insert_chain_tail(ngx_chain_t **p_chain, ngx_chain_t *tail)
 {
     ngx_chain_t *cl;
 
@@ -334,7 +361,8 @@ ngx_chain_t * insert_chain_tail(ngx_chain_t **p_chain, ngx_chain_t *tail)
 
 /* delete the chains link of *p_chain and  
  * add to the head of *p_free_chain */
-void delete_and_free_chain( ngx_chain_t **p_chain, ngx_chain_t **p_free_chain)
+void 
+delete_and_free_chain( ngx_chain_t **p_chain, ngx_chain_t **p_free_chain)
 {
     ngx_chain_t *cl, *tail;
 

@@ -7,7 +7,7 @@
 
 
 typedef struct {
-    ngx_buf_t *buf;
+    ngx_buf_t  *buf;
     ngx_queue_t queue;
 } ngx_queue_buf_t;
 

@@ -1,3 +1,19 @@
+
+Changes with nginx_substitutions_filter 0.5.2                                     2010-08-11
+
+    *) do many optimizing for this module
+    *) fix a bug of buffer overlap
+    *) fix a segment fault bug when output chain return NGX_AGAIN.
+    *) fix a bug about last buffer with no linefeed. This may cause segment fault. Thanks for Josef Fröhle 
+
+Changes with nginx_substitutions_filter 0.5                                       2010-04-15
+
+    *) refactor the source structure, create branches of dev
+    *) fix a bug of small chunk of buffers causing lose content
+    *) fix the bug of last_buf and the nginx's compatibility above 0.8.25
+    *) fix a bug with unwanted capture config error in fix string substitution
+    *) add feature of regex captures
+
 Changes with nginx_substitutions_filter 0.4                                       2009-12-23
 
     *) fix many bugs

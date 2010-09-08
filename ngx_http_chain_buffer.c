@@ -326,6 +326,12 @@ insert_shadow_tail(ngx_buf_t **p_shadow, ngx_buf_t *tail)
         if (b == tail) {
             return *p_shadow;
         }
+
+        if (b->last_shadow) {
+            b->last_shadow = 0;
+            b = b->shadow;
+            break;
+        }
     }
 
     b = tail;

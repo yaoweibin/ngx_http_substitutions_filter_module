@@ -331,7 +331,6 @@ ngx_http_subs_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
         }
 
         /* NGX_OK */
-
         if (ngx_queue_empty(&ctx->out->queue)) {
             qb = ngx_alloc_queue_buf(r->pool, ctx->free_queue);
             b = create_buffer(NULL, 0, r->pool);
@@ -353,11 +352,13 @@ ngx_http_subs_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
 
             if (b) {
                 insert_shadow_tail(&b->shadow, cl->buf);
+                cl->buf->last_shadow = 1;
             }
             else {
                 b = ngx_pcalloc(r->pool, sizeof(ngx_buf_t));
                 b->shadow = cl->buf;
                 b->sync = 1;
+                b->last_shadow = 1;
             }
         }
 

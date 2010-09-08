@@ -47,7 +47,7 @@ location / {
 * ''o'': Just replace the first one.
 * ''r'': The pattern is treated as a regular expression, default is fixed string.
 
-=== Installation ===
+== Installation ==
 
 To install, get the source with subversion:
 

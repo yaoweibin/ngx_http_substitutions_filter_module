@@ -55,7 +55,7 @@ nginx_substitutions_filter
     *   *r*: The pattern is treated as a regular expression, default is
         fixed string.
 
-   Installation
+  Installation
     To install, get the source with subversion:
 
     svn checkout http://substitutions4nginx.googlecode.com/svn/trunk/

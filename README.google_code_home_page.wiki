@@ -46,7 +46,7 @@ _subs_filter_ allows replacing source string(regular expression or fixed) in the
  * _o_: Just replace the first one.
  * _r_: The pattern is treated as a regular expression, default is fixed string.
 
-=== Installation ===
+== Installation ==
 
 To install, get the source with subversion:
 

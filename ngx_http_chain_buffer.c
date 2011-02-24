@@ -13,14 +13,19 @@ buffer_append_string(ngx_buf_t *b, u_char *s, size_t len, ngx_pool_t *pool)
 
     if (len > (size_t) (b->end - b->last)) {
 
+        size = b->last - b->pos;
+
         capacity = b->end - b->start;
         capacity *= 1.5;
+        if (capacity < (size + len)) {
+            capacity = size + len;
+        }
+
         p = ngx_palloc(pool, capacity);
         if (p == NULL) {
             return NULL;
         }
 
-        size = b->last - b->pos;
         ngx_memcpy(p, b->pos, size);
 
         b->start = b->pos = p;

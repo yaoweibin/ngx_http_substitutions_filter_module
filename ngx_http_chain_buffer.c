@@ -324,24 +324,27 @@ insert_shadow_tail(ngx_buf_t **p_shadow, ngx_buf_t *tail)
 
     if (*p_shadow == NULL){
         *p_shadow = tail;
-        return *p_shadow;
+        return tail;
     }
 
     for(b = (*p_shadow); b; b = b->shadow){
         if (b == tail) {
-            return *p_shadow;
+            return tail;
         }
 
         if (b->last_shadow) {
             b->last_shadow = 0;
-            b = b->shadow;
-            break;
+            b->shadow = tail;
+            return tail;
+        }
+
+        if (b->shadow == NULL) {
+            b->shadow = tail;
+            return tail;
         }
     }
 
-    b = tail;
-
-    return *p_shadow;
+    return NULL;
 }
 
 
@@ -382,6 +385,7 @@ delete_and_free_chain( ngx_chain_t **p_chain, ngx_chain_t **p_free_chain)
     }
 
     for(cl = *p_chain; cl; cl = cl->next) {
+
         if (cl->buf) {
             ngx_memzero(cl->buf, sizeof(ngx_buf_t));
         }

@@ -350,6 +350,10 @@ ngx_http_subs_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
             qb = ngx_queue_data(q, ngx_queue_buf_t, queue);
             b = qb->buf;
 
+            ngx_log_debug3(NGX_LOG_DEBUG_HTTP, log, 0,
+                    "[subs_filter] add the shadow buffer: b=%p, b->shadow=%p, cl->buf->shadow=%p",
+                    b, cl->buf, cl->buf->shadow);
+
             if (b) {
                 insert_shadow_tail(&b->shadow, cl->buf);
                 cl->buf->last_shadow = 1;
@@ -358,7 +362,7 @@ ngx_http_subs_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
                 b = ngx_pcalloc(r->pool, sizeof(ngx_buf_t));
                 b->shadow = cl->buf;
                 b->sync = 1;
-                b->last_shadow = 1;
+                cl->buf->last_shadow = 1;
             }
         }
 
@@ -1071,6 +1075,7 @@ ngx_http_subs_output_free_chain(ngx_http_subs_ctx_t *ctx)
         temp_b = b;
 
         while(temp_b->shadow) {
+
             ngx_log_debug2(NGX_LOG_DEBUG_HTTP, ngx_cycle->log, 0,
                     "clear recursive shadow buffer: %p, %p", temp_b, temp_b->shadow);
 

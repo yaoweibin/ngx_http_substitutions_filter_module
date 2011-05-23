@@ -484,7 +484,7 @@ ngx_http_subs_body_filter_init_context(ngx_http_request_t *r, ngx_chain_t *in)
             }
 #endif
             ctx->line_in = duplicate_chains(ctx->saved, NULL, ctx->tpool);
-	    if (ctx->line_in == NULL) {
+            if (ctx->line_in == NULL) {
                 return NGX_ERROR;
             }
         }
@@ -518,7 +518,44 @@ ngx_http_subs_body_filter_process_chain(ngx_http_request_t *r, ngx_chain_t *cl)
         return NGX_DECLINED;
     }
 
-    if ((b->last - b->pos) <= 0){
+    if ((b->last - b->pos) <= 0 && ctx->line_in == NULL){
+        return NGX_OK;
+    }
+
+    if ((b->last - b->pos) == 0 && ctx->line_in != NULL && b->last_buf){
+
+        ngx_log_debug0(NGX_LOG_DEBUG_HTTP, log, 0, 
+                "Zero buffer, but this is the last buffer, try to do substitution");
+
+        rc = ngx_http_subs_match(r, ctx);
+
+        ngx_free_chain(ctx->tpool, ctx->line_in);
+        ctx->line_in = NULL;
+
+        if (rc < 0) {
+            return NGX_ERROR;
+        }
+        else if (rc > 0) {
+            /* Matched at least 1 time*/
+            delete_and_free_chain(&ctx->saved, &ctx->free);
+
+            if (ctx->line_out) {
+                ngx_queue_chain_add_copy(r->pool, &ctx->out->queue, 
+                        ctx->line_out, ctx->free_queue);
+
+                ngx_free_chain(r->pool, ctx->line_out);
+                ctx->line_out = NULL;
+            }
+        }
+        else {
+            /* Not match, we will output the saved part of content*/
+            if (ctx->saved) {
+                ngx_queue_chain_add_copy(r->pool, &ctx->out->queue, 
+                        ctx->saved, ctx->free_queue);
+                ctx->saved = NULL;
+            }
+        }
+
         return NGX_OK;
     }
 
@@ -530,7 +567,7 @@ ngx_http_subs_body_filter_process_chain(ngx_http_request_t *r, ngx_chain_t *cl)
 
         if (linefeed == NULL && b->last_buf){
             linefeed = b->last - 1;
-            ngx_log_debug(NGX_LOG_DEBUG_HTTP, log, 0, 
+            ngx_log_debug0(NGX_LOG_DEBUG_HTTP, log, 0, 
                     "Not find linefeed, but this is the last buffer");
         }
 

@@ -458,7 +458,7 @@ ngx_http_subs_body_filter_init_context(ngx_http_request_t *r, ngx_chain_t *in)
          * for the chain of 'ctx->line_in's temporary memory 
          * allocation
          * */
-        ctx->tpool = ngx_create_pool(pool_size, r->connection->log);
+        ctx->tpool = ngx_create_pool(pool_size, log);
         if (ctx->tpool == NULL) {
             return NGX_ERROR;
         }
@@ -500,13 +500,15 @@ ngx_http_subs_body_filter_process_chain(ngx_http_request_t *r, ngx_chain_t *cl)
     u_char                    *p, *linefeed;
     ngx_buf_t                 *b = NULL;
     ngx_int_t                 len, rc; 
-    ngx_log_t                 *log;
     ngx_chain_t               *temp_cl;
     ngx_chain_t               *part_line_in_cl;
     ngx_http_subs_ctx_t       *ctx;
 
+#if (NGX_DEBUG)
+    ngx_log_t                 *log;
 
     log = r->connection->log;
+#endif
 
     ctx = ngx_http_get_module_ctx(r, ngx_http_subs_filter_module);
     if (ctx == NULL) {
@@ -1028,7 +1030,6 @@ static ngx_int_t
 ngx_http_subs_output( ngx_http_request_t *r,
         ngx_http_subs_ctx_t *ctx, ngx_chain_t *in)
 {
-    size_t        size;
     ngx_int_t     rc, last_chain;
     ngx_buf_t    *b;
     ngx_chain_t  *cl, *out = NULL;
@@ -1046,11 +1047,10 @@ ngx_http_subs_output( ngx_http_request_t *r,
     for (cl = out; cl; cl = cl->next) {
 
         b = cl->buf;
-        size = ngx_buf_size(b);
 
         ngx_log_debug4(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
                 "subs out buffer: %p , size:%uz, sync:%d, last_buf:%d", 
-                b, size, b->sync, b->last_buf);
+                b, ngx_buf_size(b), b->sync, b->last_buf);
 
         if (b->last_buf) {
             last_chain = 1;
@@ -1067,6 +1067,8 @@ ngx_http_subs_output( ngx_http_request_t *r,
     rc = ngx_http_next_body_filter(r, out);
 
 #if SUBS_DEBUG
+    size_t        size;
+
     size = 0;
     for (cl = out; cl; cl = cl->next) {
         size = ngx_buf_size(cl->buf);

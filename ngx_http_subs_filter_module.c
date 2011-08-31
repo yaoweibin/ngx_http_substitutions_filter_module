@@ -903,15 +903,13 @@ ngx_http_subs_match_regex_substituion(ngx_http_request_t *r,
 }
 
 
-#if defined(__OpenBSD__)
-
 /*
  * Thanks to Laurent Ghigonis
  * Taken from FreeBSD
  * Find the first occurrence of the byte string s in byte string l.
  */
 static void *
-memmem(const void *l, size_t l_len, const void *s, size_t s_len)
+subs_memmem(const void *l, size_t l_len, const void *s, size_t s_len)
 {
     register char *cur, *last;
     const char *cl = (const char *)l;
@@ -938,8 +936,6 @@ memmem(const void *l, size_t l_len, const void *s, size_t s_len)
 
     return NULL;
 }
-
-#endif
         
 
 static ngx_int_t
@@ -954,7 +950,7 @@ ngx_http_subs_match_fix_substituion(sub_pair_t *pair,
             break;
         }
 
-        sub_start = memmem(b->pos, b->last - b->pos, 
+        sub_start = subs_memmem(b->pos, b->last - b->pos, 
                 pair->match.data, pair->match.len);
         if (sub_start == NULL) {
             break;

@@ -4,7 +4,7 @@
 <head>
 <title>nginx_substitutions_filter</title>
 <meta http-equiv="content-type" content="text/html; charset=utf-8" />
-<link rev="made" href="mailto:root@localhost" />
+<link rev="made" href="mailto:ports-i386@jail-3.isc.freebsd.org" />
 </head>
 
 <body style="background-color: white">
@@ -74,6 +74,8 @@
 <p><strong>default:</strong> <em>subs_filter_types text/html</em></p>
 <p><strong>context:</strong> <em>http, server, location</em></p>
 <p><em>subs_filter_types</em> is used to specify which content types should be checked for <em>subs_filter</em>. The default is only <em>text/html</em>.</p>
+<p>This module just works with plain text. If the response is compressed, it can't uncompress the response and will ignore this response. This module can be compatible with gzip filter module. But it will not work with proxy compressed response. You can disable the compressed response like this:</p>
+<p>proxy_set_header Accept-Encoding &quot;&quot;;</p>
 <p>
 </p>
 <h3><a name="subs_filter">subs_filter</a></h3>

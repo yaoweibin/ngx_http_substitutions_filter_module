@@ -31,7 +31,11 @@ location / {
 
 '''context:''' ''http, server, location''
 
-''subs_filter_types'' is used to specify which content types should be checked for ''subs_filter''. The default is only ''text/html''.
+''subs_filter_types'' is used to specify which content types should be checked for ''subs_filter''. The default is only ''text/html''. 
+
+This module just works with plain text. If the response is compressed, it can't uncompress the response and will ignore this response. This module can be compatible with gzip filter module. But it will not work with proxy compressed response. You can disable the compressed response like this:
+
+proxy_set_header Accept-Encoding "";
 
 === subs_filter ===
 

@@ -1,11 +1,9 @@
 #line 1
-# TODO:
-#
 package Test::Base;
 use 5.006001;
 use Spiffy 0.30 -Base;
 use Spiffy ':XXX';
-our $VERSION = '0.59';
+our $VERSION = '0.60';
 
 my @test_more_exports;
 BEGIN {
@@ -536,7 +534,7 @@ sub _strict_warnings() {
 sub tie_output() {
     my $handle = shift;
     die "No buffer to tie" unless @_;
-    tie $handle, 'Test::Base::Handle', $_[0];
+    tie *$handle, 'Test::Base::Handle', $_[0];
 }
 
 sub no_diff {
@@ -681,4 +679,4 @@ __DATA__
 
 =encoding utf8
 
-#line 1376
+#line 1374

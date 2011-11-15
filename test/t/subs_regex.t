@@ -5,6 +5,8 @@ use lib 'lib';
 use Test::Nginx::LWP;
 
 plan tests => repeat_each() * 2 * blocks();
+$ENV{TEST_NGINX_BACKENDS_PORT} ||= 80;
+no_root_location();
 
 #no_diff;
 
@@ -13,10 +15,18 @@ run_tests();
 __DATA__
 
 === TEST 1: the "regex substitution" command
+--- http_config
+
+    upstream backends {
+        server blog.163.com:$TEST_NGINX_BACKENDS_PORT;
+    }
+
 --- config
+
     location / {      
         subs_filter '163.com' 'yaoweibin' ir;
-        proxy_pass http://blog.163.com/;
+        proxy_set_header Host 'blog.163.com';
+        proxy_pass http://backends;
     }
 --- request
     GET /

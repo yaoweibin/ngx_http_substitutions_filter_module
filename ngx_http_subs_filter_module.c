@@ -129,7 +129,7 @@ static char *ngx_http_subs_merge_conf(ngx_conf_t *cf, void *parent,
 
 static ngx_int_t ngx_http_subs_filter_init(ngx_conf_t *cf);
 
-extern ngx_int_t ngx_regex_capture_count(ngx_regex_t *re);
+static ngx_int_t ngx_http_subs_regex_capture_count(ngx_regex_t *re);
 
 static ngx_command_t  ngx_http_subs_filter_commands[] = {
 
@@ -1268,7 +1268,7 @@ ngx_http_subs_filter_regex_compile(sub_pair_t *pair,
         return NGX_ERROR;
     }
 
-    n = ngx_regex_capture_count(pair->match_regex);
+    n = ngx_http_subs_regex_capture_count(pair->match_regex);
 
     if (pair->dup_capture) {
         mask = ((1 << (n + 1)) - 1);
@@ -1290,6 +1290,23 @@ ngx_http_subs_filter_regex_compile(sub_pair_t *pair,
 #endif
 
     return NGX_OK;
+}
+
+
+static ngx_int_t
+ngx_http_subs_regex_capture_count(ngx_regex_t *re)
+{
+    int  rc, n;
+
+    n = 0;
+
+    rc = pcre_fullinfo(re, NULL, PCRE_INFO_CAPTURECOUNT, &n);
+
+    if (rc < 0) {
+        return (ngx_int_t) rc;
+    }
+
+    return (ngx_int_t) n;
 }
 
 

@@ -1300,7 +1300,11 @@ ngx_http_subs_regex_capture_count(ngx_regex_t *re)
 
     n = 0;
 
+#if defined(nginx_version) && nginx_version >= 1001012
+    rc = pcre_fullinfo(re->pcre, NULL, PCRE_INFO_CAPTURECOUNT, &n);
+#else
     rc = pcre_fullinfo(re, NULL, PCRE_INFO_CAPTURECOUNT, &n);
+#endif
 
     if (rc < 0) {
         return (ngx_int_t) rc;

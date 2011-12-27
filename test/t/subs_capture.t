@@ -5,7 +5,7 @@ use lib 'lib';
 use Test::Nginx::LWP;
 
 plan tests => repeat_each() * 2 * blocks();
-$ENV{TEST_NGINX_BACKENDS_PORT} ||= 80;
+$ENV{TEST_NGINX_BACKENDS_PORT} ||= "blog.163.com:80";
 no_root_location();
 
 #no_diff;
@@ -18,7 +18,7 @@ __DATA__
 --- http_config
 
     upstream backends {
-        server blog.163.com:$TEST_NGINX_BACKENDS_PORT;
+        server $TEST_NGINX_BACKENDS_PORT;
     }
 
 --- config

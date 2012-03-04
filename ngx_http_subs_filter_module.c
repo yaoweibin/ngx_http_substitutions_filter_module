@@ -366,6 +366,8 @@ ngx_http_subs_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
                 b->shadow = cl->buf;
                 b->sync = 1;
                 cl->buf->last_shadow = 1;
+
+                qb->buf = b;
             }
         }
 
@@ -447,9 +449,9 @@ ngx_http_subs_body_filter_init_context(ngx_http_request_t *r, ngx_chain_t *in)
         for (cl = ctx->in; cl; cl = cl->next) {
             if (cl->buf) {
                 pool_size += ngx_buf_size(cl->buf);
-                ngx_log_debug3(NGX_LOG_DEBUG_HTTP, log, 0,
-                        "subs in buffer: %p, size:%uz, sync:%d", 
-                        cl->buf, ngx_buf_size(cl->buf), cl->buf->sync);
+                ngx_log_debug4(NGX_LOG_DEBUG_HTTP, log, 0,
+                        "subs in buffer: %p, size:%uz, sync:%d, last_buf:%d", 
+                        cl->buf, ngx_buf_size(cl->buf), cl->buf->sync, cl->buf->last_buf);
             }
         }
 
@@ -1048,7 +1050,7 @@ ngx_http_subs_output( ngx_http_request_t *r,
         b = cl->buf;
 
         ngx_log_debug4(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
-                "subs out buffer: %p , size:%uz, sync:%d, last_buf:%d", 
+                "subs out buffer: %p, size:%uz, sync:%d, last_buf:%d", 
                 b, ngx_buf_size(b), b->sync, b->last_buf);
 
         if (b->last_buf) {

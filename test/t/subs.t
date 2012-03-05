@@ -49,3 +49,26 @@ __DATA__
 --- request
     GET /
 --- response_body_unlike: ^(.*)163\.com(.*)$
+
+=== TEST 2: the "substitution" command with gzip
+
+--- http_config
+
+    upstream backends {
+        server $TEST_NGINX_BACKENDS_PORT;
+    }
+
+--- config
+    
+    location / {
+        gzip on;
+        gzip_http_version 1.0;
+        proxy_set_header Accept-Encoding "";
+        proxy_pass http://106.187.48.116/test/subs/index.htm;
+        subs_filter '163\.com' 'yaoweibin' ir;
+    }
+--- request
+    GET /
+--- more_headers
+Accept-Encoding:gzip;
+--- response_body_like: ^(.*)$

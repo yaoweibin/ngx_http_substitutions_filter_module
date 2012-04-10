@@ -1059,7 +1059,7 @@ ngx_http_subs_output( ngx_http_request_t *r,
         }
 
         if (cl->next == NULL) {
-            b->flush = 1;
+            b->sync = 1;
             b->last_buf = last_chain;
         }
     }

@@ -73,6 +73,14 @@ nginx_substitutions_filter
 
     ./configure --add-module=/path/to/module
 
+  Known issue
+    *   In some circumstance, the page contain some very large line(>10k).
+        This page may cause some problems. I suggest you use short line, or
+        you can enlarge the proxy buffer number. For example:
+
+        proxy_buffers           128 8k;
+    *
+
   CHANGES
     Changes with nginx_substitutions_filter 0.5.2 2010-08-11
 

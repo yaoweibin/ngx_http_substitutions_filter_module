@@ -4,15 +4,13 @@
 <head>
 <title>nginx_substitutions_filter</title>
 <meta http-equiv="content-type" content="text/html; charset=utf-8" />
-<link rev="made" href="mailto:ports-i386@jail-3.isc.freebsd.org" />
+<link rev="made" href="mailto:root@localhost" />
 </head>
 
 <body style="background-color: white">
 
-
-<!-- INDEX BEGIN -->
-<div name="index">
 <p><a name="__index__"></a></p>
+<!-- INDEX BEGIN -->
 
 <ul>
 
@@ -29,16 +27,15 @@
 		</ul>
 
 		<li><a href="#installation">Installation</a></li>
+		<li><a href="#known_issue">Known issue</a></li>
 		<li><a href="#changes">CHANGES</a></li>
 		<li><a href="#reporting_a_bug">Reporting a bug</a></li>
 	</ul>
 
 </ul>
-
-<hr name="index" />
-</div>
 <!-- INDEX END -->
 
+<hr />
 <p>
 </p>
 <h1><a name="nginx_substitutions_filter">nginx_substitutions_filter</a></h1>
@@ -75,7 +72,7 @@
 <p><strong>context:</strong> <em>http, server, location</em></p>
 <p><em>subs_filter_types</em> is used to specify which content types should be checked for <em>subs_filter</em>. The default is only <em>text/html</em>.</p>
 <p>This module just works with plain text. If the response is compressed, it can't uncompress the response and will ignore this response. This module can be compatible with gzip filter module. But it will not work with proxy compressed response. You can disable the compressed response like this:</p>
-<p>proxy_set_header Accept-Encoding &quot;&quot;;</p>
+<p>proxy_set_header Accept-Encoding ``'';</p>
 <p>
 </p>
 <h3><a name="subs_filter">subs_filter</a></h3>
@@ -104,6 +101,17 @@
 <p>svn checkout <a href="http://substitutions4nginx.googlecode.com/svn/trunk/">http://substitutions4nginx.googlecode.com/svn/trunk/</a> substitutions4nginx-read-only</p>
 <p>and then compile nginx with the following option:</p>
 <p>./configure --add-module=/path/to/module</p>
+<p>
+</p>
+<h2><a name="known_issue">Known issue</a></h2>
+<ul>
+<li>
+<p>In some circumstance, the page contain some very large line(&gt;10k). This page may cause some problems. I suggest you use short line, or you can  enlarge the proxy buffer number. For example:</p>
+</li>
+</ul>
+<pre>
+    proxy_buffers           128 8k;
+*</pre>
 <p>
 </p>
 <h2><a name="changes">CHANGES</a></h2>

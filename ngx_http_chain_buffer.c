@@ -79,10 +79,11 @@ ngx_calloc_queue_buf(ngx_pool_t *pool, ngx_queue_buf_t *free)
     return qb;
 }
 
-/*copy from chain to queue*/
+
+/* copy from chain to queue */
 ngx_int_t 
 ngx_queue_chain_add_copy(ngx_pool_t *pool, ngx_queue_t *qh, 
-        ngx_chain_t *in, ngx_queue_buf_t *free)
+                         ngx_chain_t *in, ngx_queue_buf_t *free)
 {
     ngx_queue_buf_t  *qb;
 
@@ -102,9 +103,10 @@ ngx_queue_chain_add_copy(ngx_pool_t *pool, ngx_queue_t *qh,
 }
 
 
-/*copy from queue to chain*/
+/* copy from queue to chain */
 ngx_int_t 
-ngx_chain_queue_add_copy(ngx_pool_t *pool,  ngx_chain_t **chain, ngx_queue_t *qh)
+ngx_chain_queue_add_copy(ngx_pool_t *pool,  ngx_chain_t **chain,
+                         ngx_queue_t *qh)
 {
     ngx_chain_t      *cl, **ll;
     ngx_queue_t      *q;
@@ -116,7 +118,9 @@ ngx_chain_queue_add_copy(ngx_pool_t *pool,  ngx_chain_t **chain, ngx_queue_t *qh
         ll = &cl->next;
     }
 
-    for (q = ngx_queue_head(qh); q != ngx_queue_sentinel(qh); q = ngx_queue_next(q)) {
+    for (q = ngx_queue_head(qh);
+         q != ngx_queue_sentinel(qh);
+         q = ngx_queue_next(q)) {
 
         qb = ngx_queue_data(q, ngx_queue_buf_t, queue);
 
@@ -199,10 +203,12 @@ duplicate_chain_buffer(u_char *src, ngx_int_t len, ngx_pool_t *pool)
 }
 
 
-/* Fetch a chain buffer, if *p_free is NULL, then create it, 
+/*
+ * Fetch a chain buffer, if *p_free is NULL, then create it, 
  * If not, allocates the head chain of *p_free for it.*/
 ngx_chain_t *
-fetch_chain_buffer(u_char *p, ngx_int_t len, ngx_chain_t **p_free, ngx_pool_t *pool)
+fetch_chain_buffer(u_char *p, ngx_int_t len, ngx_chain_t **p_free,
+                   ngx_pool_t *pool)
 {
     ngx_buf_t   *b;
     ngx_chain_t *cl;
@@ -373,7 +379,8 @@ insert_chain_tail(ngx_chain_t **p_chain, ngx_chain_t *tail)
 }
 
 
-/* delete the chains link of *p_chain and  
+/*
+ * delete the chains link of *p_chain and  
  * add to the head of *p_free_chain */
 void 
 delete_and_free_chain( ngx_chain_t **p_chain, ngx_chain_t **p_free_chain)

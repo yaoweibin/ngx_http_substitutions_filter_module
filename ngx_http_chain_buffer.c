@@ -105,7 +105,7 @@ ngx_queue_chain_add_copy(ngx_pool_t *pool, ngx_queue_t *qh,
 
 /* copy from queue to chain */
 ngx_int_t 
-ngx_chain_queue_add_copy(ngx_pool_t *pool,  ngx_chain_t **chain,
+ngx_chain_queue_add_copy(ngx_pool_t *pool, ngx_chain_t **chain,
                          ngx_queue_t *qh)
 {
     ngx_chain_t      *cl, **ll;

@@ -48,9 +48,10 @@ typedef struct {
 
 
 typedef struct {
-    ngx_array_t   *sub_pairs;  /* array of sub_pair_t */
-    ngx_array_t   *types;      /* array of ngx_str_t */
     ngx_uint_t     max_linesize;
+    ngx_hash_t     types;
+    ngx_array_t   *sub_pairs;   /* array of sub_pair_t     */
+    ngx_array_t   *types_keys;  /* array of ngx_hash_key_t */
 } ngx_http_subs_loc_conf_t;
 
 
@@ -130,9 +131,6 @@ static char * ngx_http_subs_filter(ngx_conf_t *cf, ngx_command_t *cmd,
 static ngx_int_t ngx_http_subs_filter_regex_compile(sub_pair_t *pair, 
     ngx_http_script_compile_t *sc, ngx_conf_t *cf);
 
-static char *ngx_http_subs_types(ngx_conf_t *cf, ngx_command_t *cmd,
-    void *conf);
-
 
 static void *ngx_http_subs_create_conf(ngx_conf_t *cf);
 static char *ngx_http_subs_merge_conf(ngx_conf_t *cf, void *parent,
@@ -154,10 +152,10 @@ static ngx_command_t  ngx_http_subs_filter_commands[] = {
 
     { ngx_string("subs_filter_types"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_1MORE,
-      ngx_http_subs_types,
+      ngx_http_types_slot,
       NGX_HTTP_LOC_CONF_OFFSET,
-      0,
-      NULL },
+      offsetof(ngx_http_subs_loc_conf_t, types_keys),
+      &ngx_http_html_default_types[0] },
 
     { ngx_string("subs_filter_max_linesize"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
@@ -210,8 +208,6 @@ extern volatile ngx_cycle_t  *ngx_cycle;
 static ngx_int_t 
 ngx_http_subs_header_filter(ngx_http_request_t *r)
 {
-    ngx_str_t                 *type;
-    ngx_uint_t                 i;
     ngx_http_subs_loc_conf_t  *slcf;
 
     slcf = ngx_http_get_module_loc_conf(r, ngx_http_subs_filter_module);
@@ -233,19 +229,10 @@ ngx_http_subs_header_filter(ngx_http_request_t *r)
     }
 
     /* TODO: use the test_types interface */
-    type = slcf->types->elts;
-    for (i = 0; i < slcf->types->nelts; i++) {
-        if (r->headers_out.content_type.len >= type[i].len
-            && ngx_strncasecmp(r->headers_out.content_type.data,
-                               type[i].data, type[i].len) == 0)
-        {
-            goto found;
-        }
+    if (ngx_http_test_content_type(r, &slcf->types) == NULL) {
+        return ngx_http_next_header_filter(r);
     }
 
-    return ngx_http_next_header_filter(r);
-
-found:
     ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
                    "http subs filter header \"%V\"", &r->uri);
 
@@ -1141,6 +1128,10 @@ ngx_http_subs_output(ngx_http_request_t *r, ngx_http_subs_ctx_t *ctx,
                        "subs out buffer: %p, size:%uz, sync:%d, last_buf:%d",
                        b, ngx_buf_size(b), b->sync, b->last_buf);
 
+        if (ngx_buf_size(b) == 0) {
+            b->sync = 1;
+        }
+
         if (b->last_buf) {
             last_chain = 1;
             b->last_buf = 0;
@@ -1408,55 +1399,6 @@ ngx_http_subs_regex_capture_count(ngx_regex_t *re)
 }
 
 
-static char *
-ngx_http_subs_types( ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
-{
-    ngx_str_t                *value, *type;
-    ngx_uint_t                i;
-    ngx_http_subs_loc_conf_t *slcf = conf;
-
-    if (slcf->types == NULL) {
-        slcf->types = ngx_array_create(cf->pool, 4, sizeof(ngx_str_t));
-        if (slcf->types == NULL) {
-            return NGX_CONF_ERROR;
-        }
-
-        type = ngx_array_push(slcf->types);
-        if (type == NULL) {
-            return NGX_CONF_ERROR;
-        }
-
-        type->len = sizeof("text/html") - 1;
-        type->data = (u_char *) "text/html";
-    }
-
-    value = cf->args->elts;
-
-    for (i = 1; i < cf->args->nelts; i++) {
-
-        if (ngx_strcmp(value[i].data, "text/html") == 0) {
-            continue;
-        }
-
-        type = ngx_array_push(slcf->types);
-        if (type == NULL) {
-            return NGX_CONF_ERROR;
-        }
-
-        type->len = value[i].len;
-
-        type->data = ngx_palloc(cf->pool, type->len + 1);
-        if (type->data == NULL) {
-            return NGX_CONF_ERROR;
-        }
-
-        ngx_cpystrn(type->data, value[i].data, type->len + 1);
-    }
-
-    return NGX_CONF_OK;
-}
-
-
 static void *
 ngx_http_subs_create_conf(ngx_conf_t *cf)
 {
@@ -1466,6 +1408,14 @@ ngx_http_subs_create_conf(ngx_conf_t *cf)
     if (slcf == NULL) {
         return NGX_CONF_ERROR;
     }
+
+    /*
+     * set by ngx_pcalloc():
+     *
+     *     conf->sub_pairs = NULL;
+     *     conf->types = {NULL, 0};
+     *     conf->types_keys = NULL;
+     */
 
     slcf->max_linesize = NGX_CONF_UNSET_UINT;
 
@@ -1479,9 +1429,6 @@ ngx_http_subs_merge_conf(ngx_conf_t *cf, void *parent, void *child)
     ngx_http_subs_loc_conf_t *prev = parent;
     ngx_http_subs_loc_conf_t *conf = child;
 
-    ngx_str_t  *type;
-
-
     if (conf->sub_pairs == NULL) {
         if (prev->sub_pairs == NULL) {
             conf->sub_pairs = ngx_array_create(cf->pool, 4, sizeof(sub_pair_t));
@@ -1493,24 +1440,12 @@ ngx_http_subs_merge_conf(ngx_conf_t *cf, void *parent, void *child)
         }
     }
 
-    if (conf->types == NULL) {
-        if (prev->types == NULL) {
-            conf->types = ngx_array_create(cf->pool, 1, sizeof(ngx_str_t));
-            if (conf->types == NULL) {
-                return NGX_CONF_ERROR;
-            }
-
-            type = ngx_array_push(conf->types);
-            if (type == NULL) {
-                return NGX_CONF_ERROR;
-            }
-
-            type->len = sizeof("text/html") - 1;
-            type->data = (u_char *) "text/html";
-
-        } else {
-            conf->types = prev->types;
-        }
+    if (ngx_http_merge_types(cf, &conf->types_keys, &conf->types,
+                             &prev->types_keys, &prev->types,
+                             ngx_http_html_default_types)
+        != NGX_OK)
+    {
+        return NGX_CONF_ERROR;
     }
 
     ngx_conf_merge_uint_value(conf->max_linesize,

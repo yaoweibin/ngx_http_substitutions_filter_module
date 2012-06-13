@@ -462,56 +462,56 @@ ngx_http_subs_body_filter_init_context(ngx_http_request_t *r, ngx_chain_t *in)
         if (ngx_chain_add_copy(r->pool, &ctx->in, in) == NGX_ERROR) {
             return NGX_ERROR;
         }
+    }
 
-        pool_size = 0;
-        for (cl = ctx->in; cl; cl = cl->next) {
-            if (cl->buf) {
-                pool_size += ngx_buf_size(cl->buf);
-                ngx_log_debug4(NGX_LOG_DEBUG_HTTP, log, 0,
-                               "subs in buffer: %p, size:%uz, "
-                               "sync:%d, last_buf:%d", 
-                               cl->buf, ngx_buf_size(cl->buf),
-                               cl->buf->sync, cl->buf->last_buf);
-            }
+    pool_size = 0;
+    for (cl = ctx->in; cl; cl = cl->next) {
+        if (cl->buf) {
+            pool_size += ngx_buf_size(cl->buf);
+            ngx_log_debug4(NGX_LOG_DEBUG_HTTP, log, 0,
+                    "subs in buffer: %p, size:%uz, "
+                    "sync:%d, last_buf:%d", 
+                    cl->buf, ngx_buf_size(cl->buf),
+                    cl->buf->sync, cl->buf->last_buf);
         }
+    }
 
 
-        pool_size = ngx_align(pool_size, ngx_pagesize) + ngx_pagesize;
+    pool_size = ngx_align(pool_size, ngx_pagesize) + ngx_pagesize;
 
-        /*
-         * tpool only exists in body filter. It's used
-         * for the chain of 'ctx->line_in's temporary memory
-         * allocation
-         * */
-        ctx->tpool = ngx_create_pool(pool_size, log);
-        if (ctx->tpool == NULL) {
-            return NGX_ERROR;
-        }
-        
-        ctx->line_src = ngx_create_temp_buf(ctx->tpool, 1024);
-        if (ctx->line_src == NULL) {
-            return NGX_ERROR;
-        }
+    /*
+     * tpool only exists in body filter. It's used
+     * for the chain of 'ctx->line_in's temporary memory
+     * allocation
+     * */
+    ctx->tpool = ngx_create_pool(pool_size, log);
+    if (ctx->tpool == NULL) {
+        return NGX_ERROR;
+    }
 
-        ctx->line_dst = ngx_create_temp_buf(ctx->tpool, 1024);
-        if (ctx->line_dst == NULL) {
-            return NGX_ERROR;
-        }
+    ctx->line_src = ngx_create_temp_buf(ctx->tpool, 1024);
+    if (ctx->line_src == NULL) {
+        return NGX_ERROR;
+    }
 
-        if (ctx->saved) {
+    ctx->line_dst = ngx_create_temp_buf(ctx->tpool, 1024);
+    if (ctx->line_dst == NULL) {
+        return NGX_ERROR;
+    }
+
+    if (ctx->saved) {
 #if SUBS_DEBUG
-            for (cl = ctx->saved; cl; cl = cl->next) {
-                if (cl->buf) {
-                    ngx_log_debug3(NGX_LOG_DEBUG_HTTP, log, 0,
-                                   "subs in saved: %p , size:%uz, sync:%d",
-                                   cl->buf, ngx_buf_size(cl->buf), cl->buf->sync);
-                }
+        for (cl = ctx->saved; cl; cl = cl->next) {
+            if (cl->buf) {
+                ngx_log_debug3(NGX_LOG_DEBUG_HTTP, log, 0,
+                        "subs in saved: %p , size:%uz, sync:%d",
+                        cl->buf, ngx_buf_size(cl->buf), cl->buf->sync);
             }
+        }
 #endif
-            ctx->line_in = duplicate_chains(ctx->saved, NULL, ctx->tpool);
-            if (ctx->line_in == NULL) {
-                return NGX_ERROR;
-            }
+        ctx->line_in = duplicate_chains(ctx->saved, NULL, ctx->tpool);
+        if (ctx->line_in == NULL) {
+            return NGX_ERROR;
         }
     }
 

@@ -361,6 +361,7 @@ ngx_http_subs_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
         }
 
         /* Add the shadow buffer for freeing after output */
+        /*TODO: remove the shadow part*/
         if (ngx_buf_in_memory(cl->buf)) {
 
             q = ngx_queue_last(&ctx->out->queue);
@@ -498,6 +499,7 @@ ngx_http_subs_body_filter_init_context(ngx_http_request_t *r, ngx_chain_t *in)
         return NGX_ERROR;
     }
 
+    /*TODO: mv the saved chain to in?*/
     if (ctx->saved) {
 #if SUBS_DEBUG
         for (cl = ctx->saved; cl; cl = cl->next) {
@@ -1243,6 +1245,7 @@ ngx_http_subs_output_free_chain(ngx_http_subs_ctx_t *ctx)
 
         temp_b = b;
 
+        /*TODO: remove this part code */
         while(temp_b->shadow) {
 
             ngx_log_debug2(NGX_LOG_DEBUG_HTTP, ngx_cycle->log, 0,
@@ -1262,6 +1265,7 @@ ngx_http_subs_output_free_chain(ngx_http_subs_ctx_t *ctx)
 
         ctx->busy = cl->next;
 
+        /*TODO: update chains*/
         if (ngx_buf_in_memory(b) || b->in_file) {
 
             /* add data buffers to the free buffer chain */

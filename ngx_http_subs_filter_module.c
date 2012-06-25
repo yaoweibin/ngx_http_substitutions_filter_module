@@ -125,8 +125,6 @@ static void ngx_http_subs_body_filter_clean_context(ngx_http_request_t *r,
     ngx_http_subs_ctx_t *ctx);
 static ngx_int_t ngx_http_subs_output(ngx_http_request_t *r,
     ngx_http_subs_ctx_t *ctx, ngx_chain_t *in);
-static void ngx_http_subs_output_free_chain(ngx_http_subs_ctx_t *ctx);
-
 
 static char * ngx_http_subs_filter(ngx_conf_t *cf, ngx_command_t *cmd,
     void *conf);
@@ -358,32 +356,6 @@ ngx_http_subs_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
             qb->buf = b;
             
             ngx_queue_insert_tail(&ctx->out->queue, &qb->queue);     
-        }
-
-        /* Add the shadow buffer for freeing after output */
-        /*TODO: remove the shadow part*/
-        if (ngx_buf_in_memory(cl->buf)) {
-
-            q = ngx_queue_last(&ctx->out->queue);
-            qb = ngx_queue_data(q, ngx_queue_buf_t, queue);
-            b = qb->buf;
-
-            ngx_log_debug3(NGX_LOG_DEBUG_HTTP, log, 0,
-                    "[subs_filter] add the shadow buffer: b=%p, b->shadow=%p, "
-                    "cl->buf->shadow=%p", b, cl->buf, cl->buf->shadow);
-
-            if (b) {
-                insert_shadow_tail(&b->shadow, cl->buf);
-                cl->buf->last_shadow = 1;
-            }
-            else {
-                b = ngx_pcalloc(r->pool, sizeof(ngx_buf_t));
-                b->shadow = cl->buf;
-                b->sync = 1;
-                cl->buf->last_shadow = 1;
-
-                qb->buf = b;
-            }
         }
 
         /* copy line_in to saved. */
@@ -1139,6 +1111,7 @@ static void
 ngx_http_subs_body_filter_clean_context(ngx_http_request_t *r,
                                         ngx_http_subs_ctx_t *ctx)
 {
+    /*TODO: ctx->in should contain the saved content*/
     ctx->in = NULL;
     ctx->line_in = NULL;
     ctx->line_out = NULL;
@@ -1209,70 +1182,12 @@ ngx_http_subs_output(ngx_http_request_t *r, ngx_http_subs_ctx_t *ctx,
     }
 #endif
 
-    /*output chain is busy.*/
-    insert_chain_tail(&ctx->busy, out);
-    out = NULL;
-
-    ngx_http_subs_output_free_chain(ctx);
+    ngx_chain_update_chains(r->pool, &ctx->free, &ctx->busy, &out,
+                            (ngx_buf_tag_t) &ngx_http_subs_filter_module);
 
     r->buffered &= ~NGX_HTTP_SUB_BUFFERED;
 
     return rc;
-}
-
-
-static void 
-ngx_http_subs_output_free_chain(ngx_http_subs_ctx_t *ctx)
-{
-    ngx_buf_t    *b;
-    ngx_buf_t    *temp_b;
-    ngx_chain_t  *cl;
-
-    while (ctx->busy) {
-
-        cl = ctx->busy;
-        b = cl->buf;
-
-        if (ngx_buf_size(b) != 0) {
-            break;
-        }
-
-#if (NGX_HAVE_WRITE_ZEROCOPY)
-        if (b->zerocopy_busy) {
-            break;
-        }
-#endif
-
-        temp_b = b;
-
-        /*TODO: remove this part code */
-        while(temp_b->shadow) {
-
-            ngx_log_debug2(NGX_LOG_DEBUG_HTTP, ngx_cycle->log, 0,
-                           "clear recursive shadow buffer: %p, %p",
-                           temp_b, temp_b->shadow);
-
-            temp_b->shadow->pos = temp_b->shadow->last;
-
-            temp_b = temp_b->shadow;
-
-            if (temp_b->last_shadow) {
-                break;
-            }
-        }
-
-        b->shadow = NULL;
-
-        ctx->busy = cl->next;
-
-        /*TODO: update chains*/
-        if (ngx_buf_in_memory(b) || b->in_file) {
-
-            /* add data buffers to the free buffer chain */
-            cl->next = ctx->free;
-            ctx->free = cl;
-        }
-    }
 }
 
 

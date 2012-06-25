@@ -29,7 +29,6 @@ ngx_buf_t * buffer_append_string(ngx_buf_t *b, u_char *s,
     size_t len, ngx_pool_t *pool);
 
 ngx_chain_t * get_chain_tail(ngx_chain_t *chain);
-ngx_buf_t * insert_shadow_tail(ngx_buf_t **p_shadow, ngx_buf_t *tail);
 ngx_chain_t * insert_chain_tail(ngx_chain_t **p_chain, ngx_chain_t *tail);
 
 ngx_buf_t * create_buffer(u_char *p, ngx_int_t len, ngx_pool_t *pool);

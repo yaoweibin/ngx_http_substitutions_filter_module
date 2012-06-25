@@ -64,7 +64,7 @@ __DATA__
         gzip on;
         gzip_http_version 1.0;
         proxy_set_header Accept-Encoding "";
-        proxy_pass http://106.187.48.116/test/subs/index.htm;
+        proxy_pass http://yaoweibin.cn/test/subs/index.htm;
         subs_filter '163\.com' 'yaoweibin' ir;
     }
 --- request

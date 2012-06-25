@@ -323,37 +323,6 @@ get_chain_tail(ngx_chain_t *chain)
 }
 
 
-ngx_buf_t * 
-insert_shadow_tail(ngx_buf_t **p_shadow, ngx_buf_t *tail)
-{
-    ngx_buf_t *b;
-
-    if (*p_shadow == NULL){
-        *p_shadow = tail;
-        return tail;
-    }
-
-    for(b = (*p_shadow); b; b = b->shadow){
-        if (b == tail) {
-            return tail;
-        }
-
-        if (b->last_shadow) {
-            b->last_shadow = 0;
-            b->shadow = tail;
-            return tail;
-        }
-
-        if (b->shadow == NULL) {
-            b->shadow = tail;
-            return tail;
-        }
-    }
-
-    return NULL;
-}
-
-
 ngx_chain_t * 
 insert_chain_tail(ngx_chain_t **p_chain, ngx_chain_t *tail)
 {

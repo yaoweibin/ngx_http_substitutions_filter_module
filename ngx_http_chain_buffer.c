@@ -40,107 +40,6 @@ buffer_append_string(ngx_buf_t *b, u_char *s, size_t len, ngx_pool_t *pool)
 }
 
 
-ngx_queue_buf_t *
-ngx_alloc_queue_buf(ngx_pool_t *pool, ngx_queue_buf_t *free)
-{
-    ngx_queue_t     *q;
-    ngx_queue_buf_t *qb;
-
-
-    if (ngx_queue_empty(&free->queue)) {
-        qb = ngx_palloc(pool, sizeof(ngx_queue_buf_t));
-    }
-    else {
-        q = ngx_queue_last(&free->queue);
-        ngx_queue_remove(q);
-        qb = ngx_queue_data(q, ngx_queue_buf_t, queue);
-    }
-
-    return qb;
-}
-
-
-ngx_queue_buf_t *
-ngx_calloc_queue_buf(ngx_pool_t *pool, ngx_queue_buf_t *free) 
-{
-    ngx_queue_t     *q;
-    ngx_queue_buf_t *qb;
-
-    if (ngx_queue_empty(&free->queue)) {
-        qb = ngx_pcalloc(pool, sizeof(ngx_queue_buf_t));
-    }
-    else {
-        q = ngx_queue_last(&free->queue);
-        ngx_queue_remove(q);
-        qb = ngx_queue_data(q, ngx_queue_buf_t, queue);
-        ngx_memzero(qb, sizeof(ngx_queue_buf_t));
-    }
-
-    return qb;
-}
-
-
-/* copy from chain to queue */
-ngx_int_t 
-ngx_queue_chain_add_copy(ngx_pool_t *pool, ngx_queue_t *qh, 
-                         ngx_chain_t *in, ngx_queue_buf_t *free)
-{
-    ngx_queue_buf_t  *qb;
-
-    while (in) {
-        qb = ngx_calloc_queue_buf(pool, free);
-        if (qb == NULL) {
-            return NGX_ERROR;
-        }
-
-        qb->buf = in->buf;
-        ngx_queue_insert_tail(qh, &qb->queue);
-
-        in = in->next;
-    }
-
-    return NGX_OK;
-}
-
-
-/* copy from queue to chain */
-ngx_int_t 
-ngx_chain_queue_add_copy(ngx_pool_t *pool, ngx_chain_t **chain,
-                         ngx_queue_t *qh)
-{
-    ngx_chain_t      *cl, **ll;
-    ngx_queue_t      *q;
-    ngx_queue_buf_t  *qb;
-
-    ll = chain;
-
-    for (cl = *chain; cl; cl = cl->next) {
-        ll = &cl->next;
-    }
-
-    for (q = ngx_queue_head(qh);
-         q != ngx_queue_sentinel(qh);
-         q = ngx_queue_next(q)) {
-
-        qb = ngx_queue_data(q, ngx_queue_buf_t, queue);
-
-        cl = ngx_alloc_chain_link(pool);
-        if (cl == NULL) {
-            return NGX_ERROR;
-        }
-
-        cl->buf = qb->buf;
-
-        *ll = cl;
-        ll = &cl->next;
-    }
-
-    *ll = NULL;
-
-    return NGX_OK;
-}
-
-
 ngx_buf_t * 
 create_buffer(u_char *p, ngx_int_t len, ngx_pool_t *pool)
 {
@@ -316,6 +215,10 @@ ngx_chain_t *
 get_chain_tail(ngx_chain_t *chain)
 {
     ngx_chain_t *cl;
+
+    if (chain == NULL) {
+        return NULL;
+    }
 
     for(cl = chain; cl->next; cl = cl->next) {}
 

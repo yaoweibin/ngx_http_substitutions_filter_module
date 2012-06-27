@@ -60,21 +60,13 @@ typedef struct {
 
     ngx_chain_t   *in;
 
-    /* 
-     *  I use queue to store output buffer chain. The reason is that the
-     *  overhead of fetching tail chain is too high when there are 1000+ 
-     *  substitutions in the chain buffers. 
-     *  */
-    /*TODO: use the last_out, remove the queue part*/
-    ngx_queue_buf_t *out;
+    ngx_chain_t   *out;
+    ngx_chain_t   **last_out;
 
     ngx_chain_t   *busy;
 
     /* store the freed chain buffers. */
     ngx_chain_t   *free;
-
-    /* store the freed queue buffers. */
-    ngx_queue_buf_t *free_queue;
 
     /* alloced by ctx->tpool */
     ngx_chain_t   *line_in;
@@ -281,12 +273,6 @@ ngx_http_subs_init_context(ngx_http_request_t *r)
         ngx_memcpy(dst_pair, src_pair + i, sizeof(sub_pair_t));
     }
 
-    ctx->out = ngx_palloc(r->pool, sizeof(ngx_queue_buf_t));
-    ngx_queue_init(&ctx->out->queue);
-
-    ctx->free_queue = ngx_palloc(r->pool, sizeof(ngx_queue_buf_t));
-    ngx_queue_init(&ctx->free_queue->queue);
-
     return NGX_OK;
 }
 
@@ -294,15 +280,13 @@ ngx_http_subs_init_context(ngx_http_request_t *r)
 static ngx_int_t 
 ngx_http_subs_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
 {
-    ngx_buf_t                 *b = NULL;
     ngx_int_t		           rc; 
     ngx_log_t                 *log;
-    ngx_chain_t               *cl;
-    ngx_queue_t               *q;
-    ngx_queue_buf_t           *qb;
+    ngx_chain_t               *cl, *ll;
     ngx_http_subs_ctx_t       *ctx;
     ngx_http_subs_loc_conf_t  *slcf;
 
+    ll = NULL;
     log = r->connection->log;
 
     slcf = ngx_http_get_module_loc_conf(r, ngx_http_subs_filter_module);
@@ -345,6 +329,8 @@ ngx_http_subs_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
         /* Last chain */
         if (cl->buf->last_buf){
 
+            ll = get_chain_tail(ctx->out);
+
             if (ctx->saved) {
 
                 /* copy line_in to saved. */
@@ -355,20 +341,19 @@ ngx_http_subs_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
                     }
                 }
 
-                ngx_queue_chain_add_copy(r->pool, &ctx->out->queue, 
-                                         ctx->saved, ctx->free_queue);
+                *ctx->last_out = ctx->saved;
+                ll = get_chain_tail(ctx->saved);
+                ctx->last_out = &ll->next;
 
                 ngx_log_debug0(NGX_LOG_DEBUG_HTTP, log, 0,
                                "[subs_filter] Lost last linefeed, "
                                "but output anyway.");
             }
 
-            q = ngx_queue_last(&ctx->out->queue);
-            qb = ngx_queue_data(q, ngx_queue_buf_t, queue);
-            b = qb->buf;
+            if (ll && ll->buf) {
+                ll->buf->last_buf = 1;
+            }
 
-            b->last_buf = 1;
-            
             break;
         }
     }
@@ -381,12 +366,11 @@ ngx_http_subs_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
         }
     }
 
-
-    ngx_http_subs_body_filter_clean_context(r, ctx);
-
-    if (ngx_queue_empty(&ctx->out->queue) && ctx->busy == NULL) {
+    if ((ctx->last_out == &ctx->out) && (ctx->busy == NULL)) {
         return NGX_OK;
     }
+
+    ngx_http_subs_body_filter_clean_context(r, ctx);
 
     return ngx_http_subs_output(r, ctx, in);
 
@@ -474,6 +458,8 @@ ngx_http_subs_body_filter_init_context(ngx_http_request_t *r, ngx_chain_t *in)
         delete_and_free_chain(&ctx->saved, &ctx->free);
     }
 
+    ctx->last_out = &ctx->out;
+
     return NGX_OK;
 }
 
@@ -536,7 +522,7 @@ ngx_http_subs_body_filter_process_chain(ngx_http_request_t *r, ngx_chain_t *cl)
     ngx_log_t                 *log;
     ngx_buf_t                 *b;
     ngx_int_t                  len, rc; 
-    ngx_chain_t               *temp_cl;
+    ngx_chain_t               *temp_cl, *ll;
     ngx_chain_t               *part_line_in_cl;
     ngx_http_subs_ctx_t       *ctx;
     ngx_http_subs_loc_conf_t  *slcf;
@@ -579,10 +565,10 @@ ngx_http_subs_body_filter_process_chain(ngx_http_request_t *r, ngx_chain_t *cl)
         }
 
         if (ctx->line_out) {
-            ngx_queue_chain_add_copy(r->pool, &ctx->out->queue, 
-                    ctx->line_out, ctx->free_queue);
+            *ctx->last_out = ctx->line_out;
+            ll = get_chain_tail(ctx->line_out);
+            ctx->last_out = &ll->next;
 
-            ngx_free_chain(r->pool, ctx->line_out);
             ctx->line_out = NULL;
         }
 
@@ -650,10 +636,10 @@ ngx_http_subs_body_filter_process_chain(ngx_http_request_t *r, ngx_chain_t *cl)
 
             if (ctx->line_out) {
 
-                ngx_queue_chain_add_copy(r->pool, &ctx->out->queue, 
-                        ctx->line_out, ctx->free_queue);
+                *ctx->last_out = ctx->line_out;
+                ll = get_chain_tail(ctx->line_out);
+                ctx->last_out = &ll->next;
 
-                ngx_free_chain(r->pool, ctx->line_out);
                 ctx->line_out = NULL;
             }
            
@@ -1018,6 +1004,7 @@ ngx_http_subs_body_filter_clean_context(ngx_http_request_t *r,
     ctx->line_out = NULL;
     ctx->line_src = NULL;
     ctx->line_dst = NULL;
+    ctx->last_out = NULL;
 
     if (ctx->tpool) {
         ngx_destroy_pool(ctx->tpool);
@@ -1030,59 +1017,38 @@ static ngx_int_t
 ngx_http_subs_output(ngx_http_request_t *r, ngx_http_subs_ctx_t *ctx,
                      ngx_chain_t *in)
 {
-    ngx_int_t     rc, last_chain;
+    ngx_int_t     rc;
     ngx_buf_t    *b;
-    ngx_chain_t  *cl, *out = NULL;
+    ngx_chain_t  *cl;
 
-    if (ngx_chain_queue_add_copy(r->pool, &out, &ctx->out->queue) != NGX_OK) {
-        return NGX_ERROR;
-    }
-
-    if (!ngx_queue_empty(&ctx->out->queue)) {
-        ngx_free_queue(&ctx->free_queue->queue, &ctx->out->queue);
-    }
-
-    last_chain = 0;
     b = NULL;
 
-    for (cl = out; cl; cl = cl->next) {
+#if SUBS_DEBUG
+    for (cl = ctx->out; cl; cl = cl->next) {
 
         b = cl->buf;
 
         ngx_log_debug4(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
                        "subs out buffer: %p, size:%uz, sync:%d, last_buf:%d",
                        b, ngx_buf_size(b), b->sync, b->last_buf);
-
-        if (ngx_buf_size(b) == 0) {
-            b->sync = 1;
-        }
-
-        if (b->last_buf) {
-            last_chain = 1;
-            b->last_buf = 0;
-        }
-
-        if (cl->next == NULL) {
-            b->sync = 1;
-            b->last_buf = last_chain;
-        }
     }
+#endif
 
     /* ctx->out may not output all the data */
-    rc = ngx_http_next_body_filter(r, out);
+    rc = ngx_http_next_body_filter(r, ctx->out);
 
 #if SUBS_DEBUG
     size_t        size;
 
     size = 0;
-    for (cl = out; cl; cl = cl->next) {
+    for (cl = ctx->out; cl; cl = cl->next) {
         size = ngx_buf_size(cl->buf);
         ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
                        "subs out end: %p %uz", cl->buf, size);
     }
 #endif
 
-    ngx_chain_update_chains(r->pool, &ctx->free, &ctx->busy, &out,
+    ngx_chain_update_chains(r->pool, &ctx->free, &ctx->busy, &ctx->out,
                             (ngx_buf_tag_t) &ngx_http_subs_filter_module);
 
     r->buffered &= ~NGX_HTTP_SUB_BUFFERED;

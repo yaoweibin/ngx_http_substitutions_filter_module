@@ -6,23 +6,6 @@
 #include <ngx_core.h>
 
 
-typedef struct {
-    ngx_buf_t  *buf;
-    ngx_queue_t queue;
-} ngx_queue_buf_t;
-
-ngx_queue_buf_t *ngx_alloc_queue_buf(ngx_pool_t *pool, ngx_queue_buf_t *free);
-ngx_queue_buf_t *ngx_calloc_queue_buf(ngx_pool_t *pool, ngx_queue_buf_t *free);
-
-#define ngx_free_queue(qh_free, qh) \
-    ngx_queue_add(qh_free, qh)      \
-    ngx_queue_init(qh)              
-
-ngx_int_t ngx_queue_chain_add_copy(ngx_pool_t *pool, ngx_queue_t *qh,
-    ngx_chain_t *in, ngx_queue_buf_t *free);
-ngx_int_t ngx_chain_queue_add_copy(ngx_pool_t *pool,
-    ngx_chain_t **chain, ngx_queue_t *qh);
-
 #define ngx_buffer_init(b) b->pos = b->last = b->start;
 
 ngx_buf_t * buffer_append_string(ngx_buf_t *b, u_char *s,

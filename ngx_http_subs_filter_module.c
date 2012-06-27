@@ -95,8 +95,6 @@ static ngx_int_t ngx_http_subs_body_filter(ngx_http_request_t *r,
     ngx_chain_t *in);
 static ngx_int_t ngx_http_subs_body_filter_init_context(ngx_http_request_t *r,
     ngx_chain_t *in);
-static ngx_int_t ngx_http_subs_deep_copy_chain(ngx_pool_t *pool,
-    ngx_chain_t **chain, ngx_chain_t *in);
 static ngx_int_t ngx_http_subs_body_filter_process_chain(ngx_http_request_t *r,
     ngx_chain_t *cl);
 static ngx_int_t  ngx_http_subs_match(ngx_http_request_t *r,
@@ -401,7 +399,7 @@ ngx_http_subs_body_filter_init_context(ngx_http_request_t *r, ngx_chain_t *in)
     }
 
     if (in) {
-        if (ngx_http_subs_deep_copy_chain(r->pool, &ctx->in, in) == NGX_ERROR) {
+        if (ngx_chain_add_copy(r->pool, &ctx->in, in) != NGX_OK) {
             return NGX_ERROR;
         }
     }
@@ -459,56 +457,6 @@ ngx_http_subs_body_filter_init_context(ngx_http_request_t *r, ngx_chain_t *in)
     }
 
     ctx->last_out = &ctx->out;
-
-    return NGX_OK;
-}
-
-
-static ngx_int_t
-ngx_http_subs_deep_copy_chain(ngx_pool_t *pool, ngx_chain_t **chain,
-    ngx_chain_t *in)
-{
-    size_t           len;
-    ngx_buf_t       *src;
-    ngx_chain_t     *cl, **ll;
-
-    ll = chain;
-
-    for (cl = *chain; cl; cl = cl->next) {
-        ll = &cl->next;
-    }
-
-    while (in) {
-        cl = ngx_alloc_chain_link(pool);
-        if (cl == NULL) {
-            return NGX_ERROR;
-        }
-
-        src = in->buf;
-        len = src->last - src->pos;
-
-        if (len) {
-            cl->buf = ngx_create_temp_buf(pool, len);
-            if (cl->buf == NULL) {
-                return NGX_ERROR;
-            }
-
-            cl->buf->last = ngx_copy(cl->buf->pos, src->pos, len);
-            src->pos = src->last;
-            
-            cl->buf->last_buf = src->last_buf;
-            cl->buf->tag = (ngx_buf_tag_t) &ngx_http_subs_filter_module;
-        }
-        else {
-            cl->buf = src;
-        }
-
-        *ll = cl;
-        ll = &cl->next;
-        in = in->next;
-    }
-
-    *ll = NULL;
 
     return NGX_OK;
 }

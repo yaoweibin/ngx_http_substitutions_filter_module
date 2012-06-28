@@ -48,10 +48,10 @@ typedef struct {
 
 
 typedef struct {
-    ngx_uint_t     max_linesize;
     ngx_hash_t     types;
     ngx_array_t   *sub_pairs;   /* array of sub_pair_t     */
     ngx_array_t   *types_keys;  /* array of ngx_hash_key_t */
+    ngx_bufs_t     bufs;
 } ngx_http_subs_loc_conf_t;
 
 
@@ -60,6 +60,7 @@ typedef struct {
 
     ngx_chain_t   *in;
 
+    ngx_buf_t     *out_buf;
     ngx_chain_t   *out;
     ngx_chain_t   **last_out;
 
@@ -76,11 +77,10 @@ typedef struct {
     /* the temporary buffer to store the line buffer after substitution */
     ngx_buf_t     *line_dst;
 
-    /* alloced by r->pool */
-    ngx_chain_t   *line_out;
-
     /* save every chain which does not contain the linefeed */
     ngx_chain_t   *saved;
+
+    ngx_int_t      bufs;
 
     unsigned       flush;
 
@@ -98,6 +98,10 @@ static ngx_int_t ngx_http_subs_body_filter_init_context(ngx_http_request_t *r,
 static ngx_int_t ngx_http_subs_body_filter_process_chain(ngx_http_request_t *r,
     ngx_chain_t *cl);
 static ngx_int_t  ngx_http_subs_match(ngx_http_request_t *r,
+    ngx_http_subs_ctx_t *ctx);
+static ngx_int_t  ngx_http_subs_out_chain_append(ngx_http_request_t *r,
+    ngx_http_subs_ctx_t *ctx, ngx_buf_t *b);
+static ngx_int_t  ngx_http_subs_get_chain_buf(ngx_http_request_t *r,
     ngx_http_subs_ctx_t *ctx);
 static ngx_buf_t *ngx_http_subs_match_read_chain_to_buffer(ngx_chain_t *in,
     ngx_buf_t *b, ngx_pool_t *tpool);
@@ -141,11 +145,11 @@ static ngx_command_t  ngx_http_subs_filter_commands[] = {
       offsetof(ngx_http_subs_loc_conf_t, types_keys),
       &ngx_http_html_default_types[0] },
 
-    { ngx_string("subs_filter_max_linesize"),
-      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_num_slot,
+    { ngx_string("subs_buffers"),
+      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE2,
+      ngx_conf_set_bufs_slot,
       NGX_HTTP_LOC_CONF_OFFSET,
-      offsetof(ngx_http_subs_loc_conf_t, max_linesize),
+      offsetof(ngx_http_subs_loc_conf_t, bufs),
       NULL },
 
     ngx_null_command
@@ -327,30 +331,27 @@ ngx_http_subs_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
         /* Last chain */
         if (cl->buf->last_buf){
 
-            ll = get_chain_tail(ctx->out);
+            /* copy line_in to ctx->out. */
+            if (ctx->line_in) {
 
-            if (ctx->saved) {
+                for (ll = ctx->line_in; ll; ll = ll->next) {
 
-                /* copy line_in to saved. */
-                if (ctx->line_in) {
-                    ctx->saved = duplicate_chains(ctx->line_in, &ctx->free, r->pool);
-                    if (ctx->saved == NULL) {
+                    if (ngx_http_subs_out_chain_append(r, ctx, ll->buf) != NGX_OK) {
                         goto failed;
                     }
                 }
-
-                *ctx->last_out = ctx->saved;
-                ll = get_chain_tail(ctx->saved);
-                ctx->last_out = &ll->next;
-
-                ngx_log_debug0(NGX_LOG_DEBUG_HTTP, log, 0,
-                               "[subs_filter] Lost last linefeed, "
-                               "but output anyway.");
             }
 
-            if (ll && ll->buf) {
-                ll->buf->last_buf = 1;
+            ngx_log_debug0(NGX_LOG_DEBUG_HTTP, log, 0,
+                    "[subs_filter] Lost last linefeed, but output anyway.");
+
+            if (ctx->out_buf == NULL) {
+                if (ngx_http_subs_get_chain_buf(r, ctx) != NGX_OK) {
+                    goto failed;
+                }
             }
+
+            ctx->out_buf->last_buf = 1;
 
             break;
         }
@@ -453,10 +454,11 @@ ngx_http_subs_body_filter_init_context(ngx_http_request_t *r, ngx_chain_t *in)
             return NGX_ERROR;
         }
 
-        delete_and_free_chain(&ctx->saved, &ctx->free);
+        /*delete_and_free_chain(&ctx->saved, &ctx->free);*/
     }
 
     ctx->last_out = &ctx->out;
+    ctx->out_buf  = NULL;
 
     return NGX_OK;
 }
@@ -465,12 +467,11 @@ ngx_http_subs_body_filter_init_context(ngx_http_request_t *r, ngx_chain_t *in)
 static ngx_int_t 
 ngx_http_subs_body_filter_process_chain(ngx_http_request_t *r, ngx_chain_t *cl)
 {
-    size_t                     linesize;
     u_char                    *p, *last, *linefeed;
     ngx_log_t                 *log;
     ngx_buf_t                 *b;
     ngx_int_t                  len, rc; 
-    ngx_chain_t               *temp_cl, *ll;
+    ngx_chain_t               *temp_cl;
     ngx_chain_t               *part_line_in_cl;
     ngx_http_subs_ctx_t       *ctx;
     ngx_http_subs_loc_conf_t  *slcf;
@@ -512,14 +513,6 @@ ngx_http_subs_body_filter_process_chain(ngx_http_request_t *r, ngx_chain_t *cl)
             return NGX_ERROR;
         }
 
-        if (ctx->line_out) {
-            *ctx->last_out = ctx->line_out;
-            ll = get_chain_tail(ctx->line_out);
-            ctx->last_out = &ll->next;
-
-            ctx->line_out = NULL;
-        }
-
         return NGX_OK;
     }
 
@@ -536,21 +529,6 @@ ngx_http_subs_body_filter_process_chain(ngx_http_request_t *r, ngx_chain_t *cl)
                 linefeed = last - 1;
                 ngx_log_debug0(NGX_LOG_DEBUG_HTTP, log, 0, 
                         "Not find linefeed, but this is the last buffer");
-            }
-            else {
-                linesize = 0;
-                for (temp_cl = ctx->line_in; temp_cl; temp_cl = temp_cl->next) {
-                    linesize += ngx_buf_size(temp_cl->buf);
-                }
-
-                linesize += ngx_buf_size(cl->buf);
-
-                if (linesize > slcf->max_linesize) {
-                    linefeed = last - 1;
-                    ngx_log_error(NGX_LOG_WARN, log, 0,
-                            "Buffer a line longer than %ui, force to flush.",
-                            slcf->max_linesize);
-                }
             }
         }
 
@@ -571,7 +549,7 @@ ngx_http_subs_body_filter_process_chain(ngx_http_request_t *r, ngx_chain_t *cl)
 
             /*
              * Do the substitutions with the chain buffers in ctx->line_in
-             * and output the chain buffers to ctx->line_out
+             * and output the chain buffers to ctx->out
              * */
             rc = ngx_http_subs_match(r, ctx);
 
@@ -582,15 +560,6 @@ ngx_http_subs_body_filter_process_chain(ngx_http_request_t *r, ngx_chain_t *cl)
                 return NGX_ERROR;
             }
 
-            if (ctx->line_out) {
-
-                *ctx->last_out = ctx->line_out;
-                ll = get_chain_tail(ctx->line_out);
-                ctx->last_out = &ll->next;
-
-                ctx->line_out = NULL;
-            }
-           
         } else {
 
             /* Not find the linefeed in this chain */
@@ -604,6 +573,92 @@ ngx_http_subs_body_filter_process_chain(ngx_http_request_t *r, ngx_chain_t *cl)
             break;
         }
     }
+
+    return NGX_OK;
+}
+
+
+static ngx_int_t  
+ngx_http_subs_out_chain_append(ngx_http_request_t *r,
+    ngx_http_subs_ctx_t *ctx, ngx_buf_t *b)
+{
+    size_t       len, capcity;
+
+    if (b == NULL || ngx_buf_size(b) == 0) {
+        return NGX_OK;
+    }
+
+    if (ctx->out_buf == NULL) {
+       if (ngx_http_subs_get_chain_buf(r, ctx) != NGX_OK) {
+           return NGX_ERROR;
+       }
+    }
+
+    while (1) {
+
+        len = ngx_buf_size(b);
+        if (len == 0) {
+            break;
+        }
+
+        capcity = ctx->out_buf->end - ctx->out_buf->last;
+
+        if (len <= capcity) {
+            ctx->out_buf->last = ngx_copy(ctx->out_buf->last, b->pos, len);
+            b->pos += len;
+            break;
+        }
+        else {
+            ctx->out_buf->last = ngx_copy(ctx->out_buf->last,
+                                          b->pos, capcity);
+        }
+
+        b->pos += capcity;
+
+        /* get more buffer */
+        if (ngx_http_subs_get_chain_buf(r, ctx) != NGX_OK) {
+            return NGX_ERROR;
+        }
+    }
+
+    return NGX_OK;
+}
+
+
+static ngx_int_t
+ngx_http_subs_get_chain_buf(ngx_http_request_t *r,
+    ngx_http_subs_ctx_t *ctx)
+{
+    ngx_chain_t               *temp;
+    ngx_http_subs_loc_conf_t  *slcf;
+
+    slcf = ngx_http_get_module_loc_conf(r, ngx_http_subs_filter_module);
+
+    if (ctx->free) {
+        temp = ctx->free;
+        ctx->free = ctx->free->next;
+
+    } else {
+        temp = ngx_alloc_chain_link(r->pool);
+        if (temp == NULL) {
+            return NGX_ERROR;
+        }
+
+        temp->buf = ngx_create_temp_buf(r->pool, slcf->bufs.size);
+        if (temp->buf == NULL) {
+            return NGX_ERROR;
+        }
+
+        temp->buf->tag = (ngx_buf_tag_t) &ngx_http_subs_filter_module;
+        temp->buf->recycled = 1;
+        ctx->bufs++;
+    }
+
+    temp->next = NULL;
+
+    ctx->out_buf = temp->buf;
+    *ctx->last_out = temp;
+    ctx->last_out = &temp->next;
 
     return NGX_OK;
 }
@@ -751,8 +806,9 @@ ngx_http_subs_match(ngx_http_request_t *r, ngx_http_subs_ctx_t *ctx)
                    "current line out: \"%V\"", &line);
 #endif
 
-    ctx->line_out = duplicate_chain_buffer(dst->pos, dst->last - dst->pos,
-                                           r->pool);
+    if (ngx_http_subs_out_chain_append(r, ctx, dst) != NGX_OK) {
+        goto failed;
+    }
 
     ngx_log_debug1(NGX_LOG_DEBUG_HTTP, log, 0, "match counts: %i", match_count);
 
@@ -949,10 +1005,10 @@ ngx_http_subs_body_filter_clean_context(ngx_http_request_t *r,
 {
     ctx->in = NULL;
     ctx->line_in = NULL;
-    ctx->line_out = NULL;
     ctx->line_src = NULL;
     ctx->line_dst = NULL;
     ctx->last_out = NULL;
+    ctx->out_buf = NULL;
 
     if (ctx->tpool) {
         ngx_destroy_pool(ctx->tpool);
@@ -1200,9 +1256,8 @@ ngx_http_subs_create_conf(ngx_conf_t *cf)
      *     conf->sub_pairs = NULL;
      *     conf->types = {NULL, 0};
      *     conf->types_keys = NULL;
+     *     conf->bufs.num = 0;
      */
-
-    slcf->max_linesize = NGX_CONF_UNSET_UINT;
 
     return slcf;
 }
@@ -1233,8 +1288,8 @@ ngx_http_subs_merge_conf(ngx_conf_t *cf, void *parent, void *child)
         return NGX_CONF_ERROR;
     }
 
-    ngx_conf_merge_uint_value(conf->max_linesize,
-                              prev->max_linesize, NGX_MAX_UINT32_VALUE);
+    ngx_conf_merge_bufs_value(conf->bufs, prev->bufs,
+                              (128 * 1024) / ngx_pagesize, ngx_pagesize);
 
     return NGX_CONF_OK;
 }

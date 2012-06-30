@@ -16,7 +16,7 @@ buffer_append_string(ngx_buf_t *b, u_char *s, size_t len, ngx_pool_t *pool)
         size = b->last - b->pos;
 
         capacity = b->end - b->start;
-        capacity *= 1.5;
+        capacity <<= 2;
         if (capacity < (size + len)) {
             capacity = size + len;
         }

@@ -9,7 +9,6 @@
 #include <ngx_core.h>
 #include <ngx_http.h>
 #include <nginx.h>
-#include <ngx_http_chain_buffer.h>
 
 
 #if (NGX_DEBUG)
@@ -22,6 +21,9 @@
 #ifndef NGX_HTTP_MAX_CAPTURES
 #define NGX_HTTP_MAX_CAPTURES 9
 #endif
+
+
+#define ngx_buffer_init(b) b->pos = b->last = b->start;
 
 
 typedef struct {
@@ -94,14 +96,16 @@ static ngx_int_t ngx_http_subs_body_filter_process_buffer(ngx_http_request_t *r,
     ngx_buf_t *b);
 static ngx_int_t  ngx_http_subs_match(ngx_http_request_t *r,
     ngx_http_subs_ctx_t *ctx);
-static ngx_int_t  ngx_http_subs_out_chain_append(ngx_http_request_t *r,
-    ngx_http_subs_ctx_t *ctx, ngx_buf_t *b);
-static ngx_int_t  ngx_http_subs_get_chain_buf(ngx_http_request_t *r,
-    ngx_http_subs_ctx_t *ctx);
 static ngx_int_t ngx_http_subs_match_regex_substituion(ngx_http_request_t *r,
     sub_pair_t *pair, ngx_buf_t *b, ngx_buf_t *dst); 
 static ngx_int_t ngx_http_subs_match_fix_substituion(ngx_http_request_t *r,
     sub_pair_t *pair, ngx_buf_t *b, ngx_buf_t *dst);
+ngx_buf_t * buffer_append_string(ngx_buf_t *b, u_char *s, size_t len,
+    ngx_pool_t *pool);
+static ngx_int_t  ngx_http_subs_out_chain_append(ngx_http_request_t *r,
+    ngx_http_subs_ctx_t *ctx, ngx_buf_t *b);
+static ngx_int_t  ngx_http_subs_get_chain_buf(ngx_http_request_t *r,
+    ngx_http_subs_ctx_t *ctx);
 static void ngx_http_subs_body_filter_clean_context(ngx_http_request_t *r,
     ngx_http_subs_ctx_t *ctx);
 static ngx_int_t ngx_http_subs_output(ngx_http_request_t *r,
@@ -841,6 +845,40 @@ ngx_http_subs_match_fix_substituion(ngx_http_request_t *r,
     }
 
     return count;
+}
+
+
+ngx_buf_t * 
+buffer_append_string(ngx_buf_t *b, u_char *s, size_t len, ngx_pool_t *pool)
+{
+    u_char     *p;
+    ngx_uint_t capacity, size;
+
+    if (len > (size_t) (b->end - b->last)) {
+
+        size = b->last - b->pos;
+
+        capacity = b->end - b->start;
+        capacity <<= 2;
+
+        if (capacity < (size + len)) {
+            capacity = size + len;
+        }
+
+        p = ngx_palloc(pool, capacity);
+        if (p == NULL) {
+            return NULL;
+        }
+
+        b->start = b->pos = p;
+        b->end = p + capacity;
+
+        b->last = ngx_copy(p, b->pos, size);
+    }
+
+    b->last = ngx_copy(b->last, s, len);
+
+    return b;
 }
 
 

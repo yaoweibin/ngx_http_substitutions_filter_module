@@ -98,23 +98,22 @@
 </p>
 <h2><a name="installation">Installation</a></h2>
 <p>To install, get the source with subversion:</p>
-<p>svn checkout <a href="http://substitutions4nginx.googlecode.com/svn/trunk/">http://substitutions4nginx.googlecode.com/svn/trunk/</a> substitutions4nginx-read-only</p>
+<p>git clone <a href="git://github.com/yaoweibin/ngx_http_substitutions_filter_module.git">git://github.com/yaoweibin/ngx_http_substitutions_filter_module.git</a></p>
 <p>and then compile nginx with the following option:</p>
 <p>./configure --add-module=/path/to/module</p>
 <p>
 </p>
 <h2><a name="known_issue">Known issue</a></h2>
-<ul>
-<li>
-<p>In some circumstance, the page contain some very large line(&gt;10k). This page may cause some problems. I suggest you use short line, or you can  enlarge the proxy buffer number. For example:</p>
-</li>
-</ul>
-<pre>
-    proxy_buffers           128 8k;
-*</pre>
+<p>*</p>
 <p>
 </p>
 <h2><a name="changes">CHANGES</a></h2>
+<p>Changes with nginx_substitutions_filter 0.6.0                                     2012-06-30</p>
+<ul>
+<li>
+<p>refactor this module</p>
+</li>
+</ul>
 <p>Changes with nginx_substitutions_filter 0.5.2                                     2010-08-11</p>
 <ul>
 <li>

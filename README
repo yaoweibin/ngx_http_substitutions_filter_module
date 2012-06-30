@@ -66,22 +66,21 @@ nginx_substitutions_filter
   Installation
     To install, get the source with subversion:
 
-    svn checkout http://substitutions4nginx.googlecode.com/svn/trunk/
-    substitutions4nginx-read-only
+    git clone
+    git://github.com/yaoweibin/ngx_http_substitutions_filter_module.git
 
     and then compile nginx with the following option:
 
     ./configure --add-module=/path/to/module
 
   Known issue
-    *   In some circumstance, the page contain some very large line(>10k).
-        This page may cause some problems. I suggest you use short line, or
-        you can enlarge the proxy buffer number. For example:
-
-        proxy_buffers           128 8k;
     *
 
   CHANGES
+    Changes with nginx_substitutions_filter 0.6.0 2012-06-30
+
+    *   refactor this module
+
     Changes with nginx_substitutions_filter 0.5.2 2010-08-11
 
     *   do many optimizing for this module

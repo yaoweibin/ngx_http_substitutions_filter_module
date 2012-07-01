@@ -1,7 +1,9 @@
 
 /*
  * Author: Weibin Yao(yaoweibin@gmail.com)
- * Licence:This module could be distributed under the same terms as Nginx itself.
+ *
+ * Licence: This module could be distributed under the
+ * same terms as Nginx itself.
  */
 
 
@@ -208,7 +210,7 @@ ngx_http_subs_header_filter(ngx_http_request_t *r)
     {
         ngx_log_error(NGX_LOG_WARN, r->connection->log, 0,
                        "http subs filter header ignored, this may be a special "
-                       "or compressed response");
+                       "or compressed response.");
 
         return ngx_http_next_header_filter(r);
     }
@@ -273,6 +275,7 @@ ngx_http_subs_init_context(ngx_http_request_t *r)
     }
 
     if (ctx->line_in == NULL) {
+        /* The default buffer size is about 32K */
         ctx->line_in = ngx_create_temp_buf(r->pool, 8 * ngx_pagesize);
         if (ctx->line_in == NULL) {
             return NGX_ERROR;
@@ -416,16 +419,15 @@ ngx_http_subs_body_filter_init_context(ngx_http_request_t *r, ngx_chain_t *in)
 #endif
 
 #if SUBS_DEBUG
-
     ngx_chain_t               *cl;
 
     for (cl = ctx->in; cl; cl = cl->next) {
         if (cl->buf) {
             ngx_log_debug4(NGX_LOG_DEBUG_HTTP, log, 0,
                     "subs in buffer: %p, size:%uz, "
-                    "sync:%d, last_buf:%d", 
+                    "flush:%d, last_buf:%d", 
                     cl->buf, ngx_buf_size(cl->buf),
-                    cl->buf->sync, cl->buf->last_buf);
+                    cl->buf->flush, cl->buf->last_buf);
         }
     }
 #endif
@@ -466,8 +468,7 @@ ngx_http_subs_body_filter_process_buffer(ngx_http_request_t *r, ngx_buf_t *b)
     if ((last - p) == 0 && ngx_buf_size(ctx->line_in) && ctx->last) {
 
         ngx_log_debug0(NGX_LOG_DEBUG_HTTP, log, 0, 
-                       "Zero buffer, but this is the last buffer, "
-                       "try to do substitution");
+                       "the last zero buffer, try to do substitution");
 
         rc = ngx_http_subs_match(r, ctx);
         if (rc < 0) {
@@ -489,7 +490,7 @@ ngx_http_subs_body_filter_process_buffer(ngx_http_request_t *r, ngx_buf_t *b)
             if (ctx->last) {
                 linefeed = last - 1;
                 ngx_log_debug0(NGX_LOG_DEBUG_HTTP, log, 0, 
-                        "Not find linefeed, but this is the last buffer");
+                               "the last buffer, not find linefeed");
             }
         }
 
@@ -497,19 +498,12 @@ ngx_http_subs_body_filter_process_buffer(ngx_http_request_t *r, ngx_buf_t *b)
 
             len = linefeed - p + 1;
 
-            ngx_log_debug2(NGX_LOG_DEBUG_HTTP, log, 0,
-                           "create line: %p, len: %i", p, len);
-
             if (buffer_append_string(ctx->line_in, p, len, r->pool) == NULL) {
                 return NGX_ERROR;
             }
 
             p += len;
 
-            /*
-             * Do the substitutions with the buffer from ctx->line_in
-             * and output the chain buffers to ctx->out
-             * */
             rc = ngx_http_subs_match(r, ctx);
             if (rc < 0) {
                 return NGX_ERROR;
@@ -517,8 +511,9 @@ ngx_http_subs_body_filter_process_buffer(ngx_http_request_t *r, ngx_buf_t *b)
 
         } else {
 
-            /* Not find the linefeed in this chain, save the left data to line_in */
-            if (buffer_append_string(ctx->line_in, p, last - p, r->pool) == NULL) {
+            /* Not find linefeed in this chain, save the left data to line_in */
+            if (buffer_append_string(ctx->line_in, p, last - p, r->pool)
+                == NULL) {
                 return NGX_ERROR;
             }
 
@@ -530,8 +525,11 @@ ngx_http_subs_body_filter_process_buffer(ngx_http_request_t *r, ngx_buf_t *b)
 }
 
 
-/* Do the substitutions by a line. */
-static ngx_int_t  
+/*
+ * Do the substitutions from ctx->line_in
+ * and output the chain buffers to ctx->out
+ * */
+static ngx_int_t
 ngx_http_subs_match(ngx_http_request_t *r, ngx_http_subs_ctx_t *ctx)
 {
     ngx_buf_t   *src, *dst, *temp;
@@ -576,21 +574,6 @@ ngx_http_subs_match(ngx_http_request_t *r, ngx_http_subs_ctx_t *ctx)
 
             ngx_buffer_init(dst); 
         }
-
-        ngx_log_debug4(NGX_LOG_DEBUG_HTTP, log, 0,
-                       "http subs filter start: match:%V, sub:%V, "
-                       "regex:%i, dup_capture:%i",
-                       &pair->match, &pair->sub, 
-                       (pair->regex||pair->insensitive), pair->dup_capture);
-
-#if SUBS_DEBUG
-        ngx_str_t    line;
-
-        line.data = src->pos;
-        line.len = src->last - src->pos;
-        ngx_log_debug1(NGX_LOG_DEBUG_HTTP, log, 0,
-                       "current line in: \"%V\"", &line);
-#endif
 
         if ((!pair->regex) 
              && ((ngx_uint_t)(src->last - src->pos) < pair->match.len)) {
@@ -649,16 +632,6 @@ ngx_http_subs_match(ngx_http_request_t *r, ngx_http_subs_ctx_t *ctx)
         dst = src;
     }
 
-#if SUBS_DEBUG
-    ngx_str_t    line;
-
-    line.data = dst->pos;
-    line.len = dst->last - dst->pos;
-
-    ngx_log_debug1(NGX_LOG_DEBUG_HTTP, log, 0,
-                   "current line out: \"%V\"", &line);
-#endif
-
     if (ngx_http_subs_out_chain_append(r, ctx, dst) != NGX_OK) {
         goto failed;
     }
@@ -673,7 +646,7 @@ ngx_http_subs_match(ngx_http_request_t *r, ngx_http_subs_ctx_t *ctx)
 failed:
 
     ngx_log_error(NGX_LOG_ERR, log, 0,
-            "[subs_filter]  ngx_http_subs_match error.");
+            "[subs_filter] ngx_http_subs_match error.");
 
     return -1;
 }
@@ -994,9 +967,9 @@ ngx_http_subs_output(ngx_http_request_t *r, ngx_http_subs_ctx_t *ctx,
 
         b = cl->buf;
 
-        ngx_log_debug4(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
-                       "subs out buffer: %p, size:%uz, sync:%d, last_buf:%d",
-                       b, ngx_buf_size(b), b->sync, b->last_buf);
+        ngx_log_debug3(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+                       "subs out buffer: %p, size:%uz, last_buf:%d",
+                       b, ngx_buf_size(b), b->last_buf);
     }
 #endif
 
@@ -1013,8 +986,13 @@ ngx_http_subs_output(ngx_http_request_t *r, ngx_http_subs_ctx_t *ctx,
     }
 #endif
 
+#if defined(nginx_version) && (nginx_version >= 1001004)
     ngx_chain_update_chains(r->pool, &ctx->free, &ctx->busy, &ctx->out,
                             (ngx_buf_tag_t) &ngx_http_subs_filter_module);
+#else
+    ngx_chain_update_chains(&ctx->free, &ctx->busy, &ctx->out,
+                            (ngx_buf_tag_t) &ngx_http_subs_filter_module);
+#endif
 
     return rc;
 }

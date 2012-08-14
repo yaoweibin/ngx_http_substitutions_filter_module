@@ -848,10 +848,10 @@ buffer_append_string(ngx_buf_t *b, u_char *s, size_t len, ngx_pool_t *pool)
             return NULL;
         }
 
+        b->last = ngx_copy(p, b->pos, size);
+
         b->start = b->pos = p;
         b->end = p + capacity;
-
-        b->last = ngx_copy(p, b->pos, size);
     }
 
     b->last = ngx_copy(b->last, s, len);

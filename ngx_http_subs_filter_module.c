@@ -102,7 +102,7 @@ static ngx_int_t ngx_http_subs_match_regex_substituion(ngx_http_request_t *r,
     sub_pair_t *pair, ngx_buf_t *b, ngx_buf_t *dst); 
 static ngx_int_t ngx_http_subs_match_fix_substituion(ngx_http_request_t *r,
     sub_pair_t *pair, ngx_buf_t *b, ngx_buf_t *dst);
-ngx_buf_t * buffer_append_string(ngx_buf_t *b, u_char *s, size_t len,
+static ngx_buf_t * buffer_append_string(ngx_buf_t *b, u_char *s, size_t len,
     ngx_pool_t *pool);
 static ngx_int_t  ngx_http_subs_out_chain_append(ngx_http_request_t *r,
     ngx_http_subs_ctx_t *ctx, ngx_buf_t *b);
@@ -460,6 +460,11 @@ ngx_http_subs_body_filter_process_buffer(ngx_http_request_t *r, ngx_buf_t *b)
     p = b->pos;
     last = b->last;
     b->pos = b->last;
+
+    ngx_log_debug4(NGX_LOG_DEBUG_HTTP, log, 0,
+                   "subs process in buffer: %p %uz, line_in buffer: %p %uz",
+                   b, last - p,
+                   ctx->line_in, ngx_buf_size(ctx->line_in));
 
     if ((last - p) == 0 && ngx_buf_size(ctx->line_in) == 0){
         return NGX_OK;
@@ -821,7 +826,7 @@ ngx_http_subs_match_fix_substituion(ngx_http_request_t *r,
 }
 
 
-ngx_buf_t * 
+static ngx_buf_t * 
 buffer_append_string(ngx_buf_t *b, u_char *s, size_t len, ngx_pool_t *pool)
 {
     u_char     *p;
@@ -832,7 +837,7 @@ buffer_append_string(ngx_buf_t *b, u_char *s, size_t len, ngx_pool_t *pool)
         size = b->last - b->pos;
 
         capacity = b->end - b->start;
-        capacity <<= 2;
+        capacity <<= 1;
 
         if (capacity < (size + len)) {
             capacity = size + len;

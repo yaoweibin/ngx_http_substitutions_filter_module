@@ -298,11 +298,10 @@ ngx_http_subs_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
 {
     ngx_int_t		           rc; 
     ngx_log_t                 *log;
-    ngx_chain_t               *cl, *ll;
+    ngx_chain_t               *cl, *temp;
     ngx_http_subs_ctx_t       *ctx;
     ngx_http_subs_loc_conf_t  *slcf;
 
-    ll = NULL;
     log = r->connection->log;
 
     slcf = ngx_http_get_module_loc_conf(r, ngx_http_subs_filter_module);
@@ -361,12 +360,30 @@ ngx_http_subs_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
             }
 
             if (ctx->out_buf == NULL) {
-                if (ngx_http_subs_get_chain_buf(r, ctx) != NGX_OK) {
+
+                /* 
+                 * This is a zero buffer, it should not be set the temporary
+                 * or memory flag
+                 * */
+                ctx->out_buf = ngx_calloc_buf(r->pool);
+                if (ctx->out_buf == NULL) {
                     goto failed;
                 }
+
+                ctx->out_buf->sync = 1;
+
+                temp = ngx_alloc_chain_link(r->pool);
+                if (temp == NULL) {
+                    goto failed;
+                }
+
+                temp->buf = ctx->out_buf;
+                temp->next = NULL;
+
+                *ctx->last_out = temp;
+                ctx->last_out = &temp->next;
             }
 
-            ctx->out_buf->sync = 1;
             ctx->out_buf->last_buf = (r == r->main) ? 1 : 0;
             ctx->out_buf->last_in_chain = cl->buf->last_in_chain;
 

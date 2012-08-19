@@ -199,23 +199,27 @@ ngx_http_subs_header_filter(ngx_http_request_t *r)
 
     slcf = ngx_http_get_module_loc_conf(r, ngx_http_subs_filter_module);
 
-    /*Don't substitute the compressed content*/
     if (slcf->sub_pairs->nelts == 0
         || r->header_only
         || r->headers_out.content_type.len == 0
         || r->headers_out.content_length_n == 0 
-        || r->headers_out.status != NGX_HTTP_OK
-        || (r->headers_out.content_encoding  
-            && r->headers_out.content_encoding->value.len))
+        || r->headers_out.status != NGX_HTTP_OK)
     {
-        ngx_log_error(NGX_LOG_WARN, r->connection->log, 0,
-                       "http subs filter header ignored, this may be a special "
-                       "or compressed response.");
-
         return ngx_http_next_header_filter(r);
     }
 
     if (ngx_http_test_content_type(r, &slcf->types) == NULL) {
+        return ngx_http_next_header_filter(r);
+    }
+
+    /* Don't do substitution with the compressed content */
+    if (r->headers_out.content_encoding
+        && r->headers_out.content_encoding->value.len) {
+
+        ngx_log_error(NGX_LOG_WARN, r->connection->log, 0,
+                      "http subs filter header ignored, this may be a "
+                      "compressed response.");
+
         return ngx_http_next_header_filter(r);
     }
 
@@ -420,6 +424,8 @@ ngx_http_subs_body_filter_init_context(ngx_http_request_t *r, ngx_chain_t *in)
     log = r->connection->log;
 
     ctx = ngx_http_get_module_ctx(r, ngx_http_subs_filter_module);
+
+    r->connection->buffered |= NGX_HTTP_SUB_BUFFERED;
 
     if (in) {
         if (ngx_chain_add_copy(r->pool, &ctx->in, in) != NGX_OK) {
@@ -1015,6 +1021,10 @@ ngx_http_subs_output(ngx_http_request_t *r, ngx_http_subs_ctx_t *ctx,
     ngx_chain_update_chains(&ctx->free, &ctx->busy, &ctx->out,
                             (ngx_buf_tag_t) &ngx_http_subs_filter_module);
 #endif
+
+    if (ctx->last) {
+        r->connection->buffered &= ~NGX_HTTP_SUB_BUFFERED;
+    }
 
     return rc;
 }

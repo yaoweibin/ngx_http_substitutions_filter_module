@@ -108,8 +108,6 @@ static ngx_int_t  ngx_http_subs_out_chain_append(ngx_http_request_t *r,
     ngx_http_subs_ctx_t *ctx, ngx_buf_t *b);
 static ngx_int_t  ngx_http_subs_get_chain_buf(ngx_http_request_t *r,
     ngx_http_subs_ctx_t *ctx);
-static void ngx_http_subs_body_filter_clean_context(ngx_http_request_t *r,
-    ngx_http_subs_ctx_t *ctx);
 static ngx_int_t ngx_http_subs_output(ngx_http_request_t *r,
     ngx_http_subs_ctx_t *ctx, ngx_chain_t *in);
 
@@ -396,17 +394,13 @@ ngx_http_subs_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
     }
 
     /* It doesn't output anything, return */
-    if ((ctx->last_out == &ctx->out) && (ctx->busy == NULL)) {
+    if ((ctx->out == NULL) && (ctx->busy == NULL)) {
         return NGX_OK;
     }
-
-    ngx_http_subs_body_filter_clean_context(r, ctx);
 
     return ngx_http_subs_output(r, ctx, in);
 
 failed:
-
-    ngx_http_subs_body_filter_clean_context(r, ctx);
 
     ngx_log_error(NGX_LOG_ERR, log, 0, 
                   "[subs_filter] ngx_http_subs_body_filter error.");
@@ -426,6 +420,8 @@ ngx_http_subs_body_filter_init_context(ngx_http_request_t *r, ngx_chain_t *in)
     ctx = ngx_http_get_module_ctx(r, ngx_http_subs_filter_module);
 
     r->connection->buffered |= NGX_HTTP_SUB_BUFFERED;
+
+    ctx->in = NULL;
 
     if (in) {
         if (ngx_chain_add_copy(r->pool, &ctx->in, in) != NGX_OK) {
@@ -968,16 +964,6 @@ ngx_http_subs_get_chain_buf(ngx_http_request_t *r,
     ctx->last_out = &temp->next;
 
     return NGX_OK;
-}
-
-
-static void 
-ngx_http_subs_body_filter_clean_context(ngx_http_request_t *r,
-                                        ngx_http_subs_ctx_t *ctx)
-{
-    ctx->in = NULL;
-    ctx->last_out = NULL;
-    ctx->out_buf = NULL;
 }
 
 

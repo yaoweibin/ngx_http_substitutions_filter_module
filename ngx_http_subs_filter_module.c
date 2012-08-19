@@ -463,11 +463,9 @@ ngx_http_subs_body_filter_process_buffer(ngx_http_request_t *r, ngx_buf_t *b)
     ngx_log_t                 *log;
     ngx_int_t                  len, rc; 
     ngx_http_subs_ctx_t       *ctx;
-    ngx_http_subs_loc_conf_t  *slcf;
 
     log = r->connection->log;
 
-    slcf = ngx_http_get_module_loc_conf(r, ngx_http_subs_filter_module);
     ctx = ngx_http_get_module_ctx(r, ngx_http_subs_filter_module);
 
     if (b == NULL) {

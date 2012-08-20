@@ -338,8 +338,7 @@ ngx_http_subs_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
 
         if (rc == NGX_DECLINED) {
             continue;
-        }
-        else if (rc == NGX_ERROR) {
+        } else if (rc == NGX_ERROR) {
             goto failed;
         }
 
@@ -584,8 +583,8 @@ ngx_http_subs_match(ngx_http_request_t *r, ngx_http_subs_ctx_t *ctx)
                     goto failed;
                 }
             }
-        }
-        else {
+
+        } else {
             pair->sub.data = NULL;
             pair->sub.len = 0;
         }
@@ -671,7 +670,7 @@ ngx_http_subs_match(ngx_http_request_t *r, ngx_http_subs_ctx_t *ctx)
 failed:
 
     ngx_log_error(NGX_LOG_ERR, log, 0,
-            "[subs_filter] ngx_http_subs_match error.");
+                  "[subs_filter] ngx_http_subs_match error.");
 
     return -1;
 }
@@ -909,8 +908,8 @@ ngx_http_subs_out_chain_append(ngx_http_request_t *r,
             ctx->out_buf->last = ngx_copy(ctx->out_buf->last, b->pos, len);
             b->pos += len;
             break;
-        }
-        else {
+
+        } else {
             ctx->out_buf->last = ngx_copy(ctx->out_buf->last,
                                           b->pos, capcity);
         }
@@ -1066,24 +1065,28 @@ ngx_http_subs_filter( ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         if (sc.captures_mask) {
             pair->dup_capture = 1;
         }
-    }
-    else {
+
+    } else {
         pair->sub = value[2];
     }
 
     if (cf->args->nelts > 3) {
         option = &value[3];
         for(i = 0; i < option->len; i++) {
+
             switch (option->data[i]){
             case 'i':
                 pair->insensitive = 1;
                 break;
+
             case 'o':
                 pair->once = 1;
                 break;
+
             case 'r':
                 pair->regex = 1;
                 break;
+
             case 'g':
             default:
                 continue;
@@ -1103,8 +1106,7 @@ ngx_http_subs_filter( ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
 static ngx_int_t 
 ngx_http_subs_filter_regex_compile(sub_pair_t *pair,
-                                   ngx_http_script_compile_t *sc,
-                                   ngx_conf_t *cf)
+    ngx_http_script_compile_t *sc, ngx_conf_t *cf)
 {
     ngx_int_t                   n, options;
     ngx_uint_t                  mask;

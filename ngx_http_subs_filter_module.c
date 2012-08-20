@@ -353,7 +353,7 @@ ngx_http_subs_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
             if (ngx_buf_size(ctx->line_in) > 0) {
 
                 ngx_log_debug0(NGX_LOG_DEBUG_HTTP, log, 0,
-                        "[subs_filter] Lost last linefeed, output anyway.");
+                    "[subs_filter] Lost last linefeed, output anyway.");
 
                 if (ngx_http_subs_out_chain_append(r, ctx, ctx->line_in)
                     != NGX_OK) {
@@ -362,6 +362,9 @@ ngx_http_subs_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
             }
 
             if (ctx->out_buf == NULL) {
+
+                ngx_log_debug0(NGX_LOG_DEBUG_HTTP, log, 0,
+                               "[subs_filter] The last buffer is zero size.");
 
                 /* 
                  * This is a zero buffer, it should not be set the temporary
@@ -979,9 +982,9 @@ ngx_http_subs_output(ngx_http_request_t *r, ngx_http_subs_ctx_t *ctx,
 
         b = cl->buf;
 
-        ngx_log_debug3(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
-                       "subs out buffer: %p, size:%uz, last_buf:%d",
-                       b, ngx_buf_size(b), b->last_buf);
+        ngx_log_debug4(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+                       "subs out buffer: %p, size:%uz, t: %d, l:%d",
+                       b, ngx_buf_size(b), b->temporary, b->last_buf);
     }
 #endif
 

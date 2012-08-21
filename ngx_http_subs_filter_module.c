@@ -414,10 +414,7 @@ failed:
 static ngx_int_t 
 ngx_http_subs_body_filter_init_context(ngx_http_request_t *r, ngx_chain_t *in) 
 {
-    ngx_log_t                 *log;
     ngx_http_subs_ctx_t       *ctx;
-
-    log = r->connection->log;
 
     ctx = ngx_http_get_module_ctx(r, ngx_http_subs_filter_module);
 
@@ -433,7 +430,7 @@ ngx_http_subs_body_filter_init_context(ngx_http_request_t *r, ngx_chain_t *in)
 
 #if SUBS_DEBUG
     if (ngx_buf_size(ctx->line_in) > 0) {
-        ngx_log_debug2(NGX_LOG_DEBUG_HTTP, log, 0,
+        ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
                 "subs line in buffer: %p, size:%uz",
                 ctx->line_in, ngx_buf_size(ctx->line_in));
     }
@@ -444,7 +441,7 @@ ngx_http_subs_body_filter_init_context(ngx_http_request_t *r, ngx_chain_t *in)
 
     for (cl = ctx->in; cl; cl = cl->next) {
         if (cl->buf) {
-            ngx_log_debug4(NGX_LOG_DEBUG_HTTP, log, 0,
+            ngx_log_debug4(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
                     "subs in buffer: %p, size:%uz, "
                     "flush:%d, last_buf:%d", 
                     cl->buf, ngx_buf_size(cl->buf),
@@ -464,11 +461,8 @@ static ngx_int_t
 ngx_http_subs_body_filter_process_buffer(ngx_http_request_t *r, ngx_buf_t *b)
 {
     u_char                    *p, *last, *linefeed;
-    ngx_log_t                 *log;
     ngx_int_t                  len, rc; 
     ngx_http_subs_ctx_t       *ctx;
-
-    log = r->connection->log;
 
     ctx = ngx_http_get_module_ctx(r, ngx_http_subs_filter_module);
 
@@ -480,7 +474,7 @@ ngx_http_subs_body_filter_process_buffer(ngx_http_request_t *r, ngx_buf_t *b)
     last = b->last;
     b->pos = b->last;
 
-    ngx_log_debug4(NGX_LOG_DEBUG_HTTP, log, 0,
+    ngx_log_debug4(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
                    "subs process in buffer: %p %uz, line_in buffer: %p %uz",
                    b, last - p,
                    ctx->line_in, ngx_buf_size(ctx->line_in));
@@ -491,7 +485,7 @@ ngx_http_subs_body_filter_process_buffer(ngx_http_request_t *r, ngx_buf_t *b)
 
     if ((last - p) == 0 && ngx_buf_size(ctx->line_in) && ctx->last) {
 
-        ngx_log_debug0(NGX_LOG_DEBUG_HTTP, log, 0, 
+        ngx_log_debug0(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, 
                        "the last zero buffer, try to do substitution");
 
         rc = ngx_http_subs_match(r, ctx);
@@ -506,14 +500,14 @@ ngx_http_subs_body_filter_process_buffer(ngx_http_request_t *r, ngx_buf_t *b)
 
         linefeed = memchr(p, LF, last - p); 
 
-        ngx_log_debug1(NGX_LOG_DEBUG_HTTP, log, 0, "find linefeed: %p",
+        ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "find linefeed: %p",
                        linefeed);
 
         if (linefeed == NULL) {
 
             if (ctx->last) {
                 linefeed = last - 1;
-                ngx_log_debug0(NGX_LOG_DEBUG_HTTP, log, 0, 
+                ngx_log_debug0(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, 
                                "the last buffer, not find linefeed");
             }
         }

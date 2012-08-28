@@ -47,7 +47,7 @@ typedef struct {
     ngx_array_t   *sub_lengths;
     ngx_array_t   *sub_values;
 
-    unsigned       matched; 
+    unsigned       matched;
 } sub_pair_t;
 
 
@@ -99,7 +99,7 @@ static ngx_int_t ngx_http_subs_body_filter_process_buffer(ngx_http_request_t *r,
 static ngx_int_t  ngx_http_subs_match(ngx_http_request_t *r,
     ngx_http_subs_ctx_t *ctx);
 static ngx_int_t ngx_http_subs_match_regex_substituion(ngx_http_request_t *r,
-    sub_pair_t *pair, ngx_buf_t *b, ngx_buf_t *dst); 
+    sub_pair_t *pair, ngx_buf_t *b, ngx_buf_t *dst);
 static ngx_int_t ngx_http_subs_match_fix_substituion(ngx_http_request_t *r,
     sub_pair_t *pair, ngx_buf_t *b, ngx_buf_t *dst);
 static ngx_buf_t * buffer_append_string(ngx_buf_t *b, u_char *s, size_t len,
@@ -113,7 +113,7 @@ static ngx_int_t ngx_http_subs_output(ngx_http_request_t *r,
 
 static char * ngx_http_subs_filter(ngx_conf_t *cf, ngx_command_t *cmd,
     void *conf);
-static ngx_int_t ngx_http_subs_filter_regex_compile(sub_pair_t *pair, 
+static ngx_int_t ngx_http_subs_filter_regex_compile(sub_pair_t *pair,
     ngx_http_script_compile_t *sc, ngx_conf_t *cf);
 
 
@@ -190,7 +190,7 @@ static ngx_http_output_body_filter_pt    ngx_http_next_body_filter;
 extern volatile ngx_cycle_t  *ngx_cycle;
 
 
-static ngx_int_t 
+static ngx_int_t
 ngx_http_subs_header_filter(ngx_http_request_t *r)
 {
     ngx_http_subs_loc_conf_t  *slcf;
@@ -200,7 +200,7 @@ ngx_http_subs_header_filter(ngx_http_request_t *r)
     if (slcf->sub_pairs->nelts == 0
         || r->header_only
         || r->headers_out.content_type.len == 0
-        || r->headers_out.content_length_n == 0 
+        || r->headers_out.content_length_n == 0
         || r->headers_out.status != NGX_HTTP_OK)
     {
         return ngx_http_next_header_filter(r);
@@ -295,10 +295,10 @@ ngx_http_subs_init_context(ngx_http_request_t *r)
 }
 
 
-static ngx_int_t 
+static ngx_int_t
 ngx_http_subs_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
 {
-    ngx_int_t		           rc; 
+    ngx_int_t		           rc;
     ngx_log_t                 *log;
     ngx_chain_t               *cl, *temp;
     ngx_http_subs_ctx_t       *ctx;
@@ -316,7 +316,7 @@ ngx_http_subs_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
         return ngx_http_next_body_filter(r, in);
     }
 
-    ngx_log_debug1(NGX_LOG_DEBUG_HTTP, log, 0, 
+    ngx_log_debug1(NGX_LOG_DEBUG_HTTP, log, 0,
                    "http subs filter \"%V\"", &r->uri);
 
     if (in == NULL && ctx->busy == NULL) {
@@ -365,7 +365,7 @@ ngx_http_subs_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
                 ngx_log_debug0(NGX_LOG_DEBUG_HTTP, log, 0,
                                "[subs_filter] The last buffer is zero size.");
 
-                /* 
+                /*
                  * This is a zero buffer, it should not be set the temporary
                  * or memory flag
                  * */
@@ -404,15 +404,15 @@ ngx_http_subs_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
 
 failed:
 
-    ngx_log_error(NGX_LOG_ERR, log, 0, 
+    ngx_log_error(NGX_LOG_ERR, log, 0,
                   "[subs_filter] ngx_http_subs_body_filter error.");
 
     return NGX_ERROR;
 }
 
 
-static ngx_int_t 
-ngx_http_subs_body_filter_init_context(ngx_http_request_t *r, ngx_chain_t *in) 
+static ngx_int_t
+ngx_http_subs_body_filter_init_context(ngx_http_request_t *r, ngx_chain_t *in)
 {
     ngx_http_subs_ctx_t       *ctx;
 
@@ -443,7 +443,7 @@ ngx_http_subs_body_filter_init_context(ngx_http_request_t *r, ngx_chain_t *in)
         if (cl->buf) {
             ngx_log_debug4(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
                     "subs in buffer: %p, size:%uz, "
-                    "flush:%d, last_buf:%d", 
+                    "flush:%d, last_buf:%d",
                     cl->buf, ngx_buf_size(cl->buf),
                     cl->buf->flush, cl->buf->last_buf);
         }
@@ -457,11 +457,11 @@ ngx_http_subs_body_filter_init_context(ngx_http_request_t *r, ngx_chain_t *in)
 }
 
 
-static ngx_int_t 
+static ngx_int_t
 ngx_http_subs_body_filter_process_buffer(ngx_http_request_t *r, ngx_buf_t *b)
 {
     u_char                    *p, *last, *linefeed;
-    ngx_int_t                  len, rc; 
+    ngx_int_t                  len, rc;
     ngx_http_subs_ctx_t       *ctx;
 
     ctx = ngx_http_get_module_ctx(r, ngx_http_subs_filter_module);
@@ -485,7 +485,7 @@ ngx_http_subs_body_filter_process_buffer(ngx_http_request_t *r, ngx_buf_t *b)
 
     if ((last - p) == 0 && ngx_buf_size(ctx->line_in) && ctx->last) {
 
-        ngx_log_debug0(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, 
+        ngx_log_debug0(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
                        "the last zero buffer, try to do substitution");
 
         rc = ngx_http_subs_match(r, ctx);
@@ -498,7 +498,7 @@ ngx_http_subs_body_filter_process_buffer(ngx_http_request_t *r, ngx_buf_t *b)
 
     while (p < last) {
 
-        linefeed = memchr(p, LF, last - p); 
+        linefeed = memchr(p, LF, last - p);
 
         ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "find linefeed: %p",
                        linefeed);
@@ -507,7 +507,7 @@ ngx_http_subs_body_filter_process_buffer(ngx_http_request_t *r, ngx_buf_t *b)
 
             if (ctx->last) {
                 linefeed = last - 1;
-                ngx_log_debug0(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, 
+                ngx_log_debug0(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
                                "the last buffer, not find linefeed");
             }
         }
@@ -590,10 +590,10 @@ ngx_http_subs_match(ngx_http_request_t *r, ngx_http_subs_ctx_t *ctx)
             src = dst;
             dst = temp;
 
-            ngx_buffer_init(dst); 
+            ngx_buffer_init(dst);
         }
 
-        if ((!pair->regex) 
+        if ((!pair->regex)
              && ((ngx_uint_t)(src->last - src->pos) < pair->match.len)) {
             continue;
         }
@@ -654,8 +654,8 @@ ngx_http_subs_match(ngx_http_request_t *r, ngx_http_subs_ctx_t *ctx)
         goto failed;
     }
 
-    ngx_buffer_init(ctx->line_in); 
-    ngx_buffer_init(ctx->line_dst); 
+    ngx_buffer_init(ctx->line_in);
+    ngx_buffer_init(ctx->line_dst);
 
     ngx_log_debug1(NGX_LOG_DEBUG_HTTP, log, 0, "match counts: %i", match_count);
 
@@ -670,9 +670,9 @@ failed:
 }
 
 
-static ngx_int_t 
+static ngx_int_t
 ngx_http_subs_match_regex_substituion(ngx_http_request_t *r, sub_pair_t *pair,
-                                      ngx_buf_t *b, ngx_buf_t *dst) 
+                                      ngx_buf_t *b, ngx_buf_t *dst)
 {
     ngx_str_t  line;
     ngx_log_t *log;
@@ -697,7 +697,7 @@ ngx_http_subs_match_regex_substituion(ngx_http_request_t *r, sub_pair_t *pair,
         line.data = b->pos;
         line.len = b->last - b->pos;
 
-        rc = ngx_regex_exec(pair->match_regex, &line, 
+        rc = ngx_regex_exec(pair->match_regex, &line,
                             (int *) pair->captures, pair->ncaptures);
 
         if (rc == NGX_REGEX_NO_MATCHED) {
@@ -711,7 +711,7 @@ ngx_http_subs_match_regex_substituion(ngx_http_request_t *r, sub_pair_t *pair,
             return NGX_ERROR;
         }
         else if (rc == 0) {
-            ngx_log_error(NGX_LOG_ALERT, log, 0, ngx_regex_exec_n 
+            ngx_log_error(NGX_LOG_ALERT, log, 0, ngx_regex_exec_n
                           " failed: ovector only has room for %d substrings",
                           (pair->ncaptures/3) - 1);
             return NGX_ERROR;
@@ -720,8 +720,8 @@ ngx_http_subs_match_regex_substituion(ngx_http_request_t *r, sub_pair_t *pair,
         pair->matched++;
         count++;
 
-        ngx_log_debug3(NGX_LOG_DEBUG_HTTP, log, 0, 
-                       "regex match:%d, start:%d, end:%d ", 
+        ngx_log_debug3(NGX_LOG_DEBUG_HTTP, log, 0,
+                       "regex match:%d, start:%d, end:%d ",
                        rc, pair->captures[0], pair->captures[1]);
 
         if (pair->dup_capture) {
@@ -729,7 +729,7 @@ ngx_http_subs_match_regex_substituion(ngx_http_request_t *r, sub_pair_t *pair,
             r->ncaptures = pair->ncaptures;
             r->captures_data = line.data;
 
-            if (ngx_http_script_run(r, &pair->sub, pair->sub_lengths->elts, 0, 
+            if (ngx_http_script_run(r, &pair->sub, pair->sub_lengths->elts, 0,
                                     pair->sub_values->elts) == NULL)
             {
                 ngx_log_error(NGX_LOG_ALERT, log, 0,
@@ -793,7 +793,7 @@ subs_memmem(const void *l, size_t l_len, const void *s, size_t s_len)
 
     return NULL;
 }
-        
+
 
 static ngx_int_t
 ngx_http_subs_match_fix_substituion(ngx_http_request_t *r,
@@ -807,7 +807,7 @@ ngx_http_subs_match_fix_substituion(ngx_http_request_t *r,
             break;
         }
 
-        sub_start = subs_memmem(b->pos, b->last - b->pos, 
+        sub_start = subs_memmem(b->pos, b->last - b->pos,
                                 pair->match.data, pair->match.len);
         if (sub_start == NULL) {
             break;
@@ -826,11 +826,11 @@ ngx_http_subs_match_fix_substituion(ngx_http_request_t *r,
             return NGX_ERROR;
         }
 
-        ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, 
+        ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
                        "fixed string match: %p", sub_start);
 
         b->pos = sub_start + pair->match.len;
-       
+
         if ((ngx_uint_t)(b->last - b->pos) < pair->match.len)
             break;
     }
@@ -839,7 +839,7 @@ ngx_http_subs_match_fix_substituion(ngx_http_request_t *r,
 }
 
 
-static ngx_buf_t * 
+static ngx_buf_t *
 buffer_append_string(ngx_buf_t *b, u_char *s, size_t len, ngx_pool_t *pool)
 {
     u_char     *p;
@@ -873,7 +873,7 @@ buffer_append_string(ngx_buf_t *b, u_char *s, size_t len, ngx_pool_t *pool)
 }
 
 
-static ngx_int_t  
+static ngx_int_t
 ngx_http_subs_out_chain_append(ngx_http_request_t *r,
     ngx_http_subs_ctx_t *ctx, ngx_buf_t *b)
 {
@@ -1010,7 +1010,7 @@ ngx_http_subs_output(ngx_http_request_t *r, ngx_http_subs_ctx_t *ctx,
 }
 
 
-static char * 
+static char *
 ngx_http_subs_filter( ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 {
     ngx_int_t                   n;
@@ -1098,7 +1098,7 @@ ngx_http_subs_filter( ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 }
 
 
-static ngx_int_t 
+static ngx_int_t
 ngx_http_subs_filter_regex_compile(sub_pair_t *pair,
     ngx_http_script_compile_t *sc, ngx_conf_t *cf)
 {
@@ -1124,7 +1124,7 @@ ngx_http_subs_filter_regex_compile(sub_pair_t *pair,
 
     rc.pattern = pair->match;
     rc.pool = cf->pool;
-    rc.err = err; 
+    rc.err = err;
     rc.options = options;
 
     if (ngx_regex_compile(&rc) != NGX_OK) {
@@ -1215,7 +1215,7 @@ ngx_http_subs_create_conf(ngx_conf_t *cf)
 }
 
 
-static char * 
+static char *
 ngx_http_subs_merge_conf(ngx_conf_t *cf, void *parent, void *child)
 {
     ngx_http_subs_loc_conf_t *prev = parent;

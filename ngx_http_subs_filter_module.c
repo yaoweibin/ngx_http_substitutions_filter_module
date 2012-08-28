@@ -711,12 +711,6 @@ ngx_http_subs_match_regex_substituion(ngx_http_request_t *r, sub_pair_t *pair,
                           rc, &line, &pair->match);
 
             return NGX_ERROR;
-
-        } else if (rc == 0) {
-            ngx_log_error(NGX_LOG_ERR, log, 0, ngx_regex_exec_n
-                          " failed: ovector only has room for %i substrings",
-                          (pair->ncaptures/3) - 1);
-            return NGX_ERROR;
         }
 
         pair->matched++;

@@ -55,6 +55,7 @@ typedef struct {
     ngx_hash_t     types;
     ngx_array_t   *sub_pairs;   /* array of sub_pair_t     */
     ngx_array_t   *types_keys;  /* array of ngx_hash_key_t */
+    size_t         line_buffer_size;
     ngx_bufs_t     bufs;
 } ngx_http_subs_loc_conf_t;
 
@@ -141,6 +142,13 @@ static ngx_command_t  ngx_http_subs_filter_commands[] = {
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_subs_loc_conf_t, types_keys),
       &ngx_http_html_default_types[0] },
+
+    { ngx_string("subs_line_buffer_size"),
+      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE2,
+      ngx_conf_set_size_slot,
+      NGX_HTTP_LOC_CONF_OFFSET,
+      offsetof(ngx_http_subs_loc_conf_t, line_buffer_size),
+      NULL },
 
     { ngx_string("subs_buffers"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE2,
@@ -278,16 +286,15 @@ ngx_http_subs_init_context(ngx_http_request_t *r)
 
     if (ctx->line_in == NULL) {
 
-        /* The default buffer size is about 32K */
-        /* TODO: make it configurable */
-        ctx->line_in = ngx_create_temp_buf(r->pool, 8 * ngx_pagesize);
+        ctx->line_in = ngx_create_temp_buf(r->pool, slcf->line_buffer_size);
         if (ctx->line_in == NULL) {
             return NGX_ERROR;
         }
     }
 
     if (ctx->line_dst == NULL) {
-        ctx->line_dst = ngx_create_temp_buf(r->pool, 8 * ngx_pagesize);
+
+        ctx->line_dst = ngx_create_temp_buf(r->pool, slcf->line_buffer_size);
         if (ctx->line_dst == NULL) {
             return NGX_ERROR;
         }
@@ -1190,10 +1197,10 @@ ngx_http_subs_regex_capture_count(ngx_regex_t *re)
 static void *
 ngx_http_subs_create_conf(ngx_conf_t *cf)
 {
-    ngx_http_subs_loc_conf_t  *slcf;
+    ngx_http_subs_loc_conf_t  *conf;
 
-    slcf = ngx_pcalloc(cf->pool, sizeof(ngx_http_subs_loc_conf_t));
-    if (slcf == NULL) {
+    conf = ngx_pcalloc(cf->pool, sizeof(ngx_http_subs_loc_conf_t));
+    if (conf == NULL) {
         return NGX_CONF_ERROR;
     }
 
@@ -1206,7 +1213,9 @@ ngx_http_subs_create_conf(ngx_conf_t *cf)
      *     conf->bufs.num = 0;
      */
 
-    return slcf;
+    conf->line_buffer_size = NGX_CONF_UNSET_SIZE;
+
+    return conf;
 }
 
 
@@ -1234,6 +1243,9 @@ ngx_http_subs_merge_conf(ngx_conf_t *cf, void *parent, void *child)
     {
         return NGX_CONF_ERROR;
     }
+
+    ngx_conf_merge_size_value(conf->line_buffer_size,
+                              prev->line_buffer_size, 8 * ngx_pagesize);
 
     /* Default total buffer size is 128k */
     ngx_conf_merge_bufs_value(conf->bufs, prev->bufs,

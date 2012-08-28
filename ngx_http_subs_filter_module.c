@@ -34,7 +34,7 @@ typedef struct {
     ngx_flag_t     insensitive;
 
     /* If it has captured variables? */
-    ngx_flag_t     dup_capture;
+    ngx_flag_t     has_captured;
 
     ngx_str_t      match;
 #if (NGX_PCRE)
@@ -569,7 +569,7 @@ ngx_http_subs_match(ngx_http_request_t *r, ngx_http_subs_ctx_t *ctx)
 
         pair = &pairs[i];
 
-        if (!pair->dup_capture) {
+        if (!pair->has_captured) {
             if (pair->sub.data == NULL) {
                 if (ngx_http_script_run(r, &pair->sub, pair->sub_lengths->elts,
                                         0, pair->sub_values->elts) == NULL)
@@ -602,7 +602,7 @@ ngx_http_subs_match(ngx_http_request_t *r, ngx_http_subs_ctx_t *ctx)
             continue;
         }
 
-        if (pair->sub.data == NULL && !pair->dup_capture) {
+        if (pair->sub.data == NULL && !pair->has_captured) {
 
             if (ngx_http_script_run(r, &pair->sub, pair->sub_lengths->elts, 0,
                                     pair->sub_values->elts) == NULL)
@@ -724,7 +724,7 @@ ngx_http_subs_match_regex_substituion(ngx_http_request_t *r, sub_pair_t *pair,
                        "regex match:%d, start:%d, end:%d ",
                        rc, pair->captures[0], pair->captures[1]);
 
-        if (pair->dup_capture) {
+        if (pair->has_captured) {
             r->captures = pair->captures;
             r->ncaptures = pair->ncaptures;
             r->captures_data = line.data;
@@ -1055,9 +1055,9 @@ ngx_http_subs_filter( ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
             return NGX_CONF_ERROR;
         }
 
-        /* Dirty hacked, if it has capture variables */
+        /* Dirty hacked, if it has captured variables */
         if (sc.captures_mask) {
-            pair->dup_capture = 1;
+            pair->has_captured = 1;
         }
 
     } else {
@@ -1146,7 +1146,7 @@ ngx_http_subs_filter_regex_compile(sub_pair_t *pair,
 
     n = ngx_http_subs_regex_capture_count(pair->match_regex);
 
-    if (pair->dup_capture) {
+    if (pair->has_captured) {
         mask = ((1 << (n + 1)) - 1);
         if ( mask < sc->captures_mask ) {
             ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,

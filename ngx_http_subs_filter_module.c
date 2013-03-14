@@ -208,8 +208,7 @@ ngx_http_subs_header_filter(ngx_http_request_t *r)
     if (slcf->sub_pairs->nelts == 0
         || r->header_only
         || r->headers_out.content_type.len == 0
-        || r->headers_out.content_length_n == 0
-        || r->headers_out.status != NGX_HTTP_OK)
+        || r->headers_out.content_length_n == 0)
     {
         return ngx_http_next_header_filter(r);
     }
@@ -894,7 +893,7 @@ ngx_http_subs_out_chain_append(ngx_http_request_t *r,
 
     while (1) {
 
-        len = ngx_buf_size(b);
+        len = (size_t) ngx_buf_size(b);
         if (len == 0) {
             break;
         }

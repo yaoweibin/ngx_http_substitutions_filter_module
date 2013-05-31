@@ -1,4 +1,3 @@
-
 /*
  * Author: Weibin Yao(yaoweibin@gmail.com)
  *
@@ -124,7 +123,9 @@ static char *ngx_http_subs_merge_conf(ngx_conf_t *cf, void *parent,
 
 static ngx_int_t ngx_http_subs_filter_init(ngx_conf_t *cf);
 
+#if (NGX_PCRE)
 static ngx_int_t ngx_http_subs_regex_capture_count(ngx_regex_t *re);
+#endif
 
 
 static ngx_command_t  ngx_http_subs_filter_commands[] = {
@@ -306,7 +307,7 @@ ngx_http_subs_init_context(ngx_http_request_t *r)
 static ngx_int_t
 ngx_http_subs_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
 {
-    ngx_int_t		           rc;
+    ngx_int_t    	           rc;
     ngx_log_t                 *log;
     ngx_chain_t               *cl, *temp;
     ngx_http_subs_ctx_t       *ctx;
@@ -682,6 +683,7 @@ static ngx_int_t
 ngx_http_subs_match_regex_substituion(ngx_http_request_t *r, sub_pair_t *pair,
                                       ngx_buf_t *b, ngx_buf_t *dst)
 {
+#if (NGX_PCRE)
     ngx_str_t  line;
     ngx_log_t *log;
     ngx_int_t  rc, count = 0;
@@ -754,6 +756,9 @@ ngx_http_subs_match_regex_substituion(ngx_http_request_t *r, sub_pair_t *pair,
     }
 
     return count;
+#else
+    return 0;
+#endif
 }
 
 
@@ -1103,8 +1108,10 @@ static ngx_int_t
 ngx_http_subs_filter_regex_compile(sub_pair_t *pair,
     ngx_http_script_compile_t *sc, ngx_conf_t *cf)
 {
+#if (NGX_PCRE)
     ngx_int_t                   n, options;
     ngx_uint_t                  mask;
+#endif
     ngx_str_t                  *value;
 
     value = cf->args->elts;
@@ -1169,7 +1176,7 @@ ngx_http_subs_filter_regex_compile(sub_pair_t *pair,
     return NGX_OK;
 }
 
-
+#if (NGX_PCRE)
 static ngx_int_t
 ngx_http_subs_regex_capture_count(ngx_regex_t *re)
 {
@@ -1191,6 +1198,7 @@ ngx_http_subs_regex_capture_count(ngx_regex_t *re)
 
     return (ngx_int_t) n;
 }
+#endif
 
 
 static void *

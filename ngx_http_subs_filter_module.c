@@ -98,8 +98,10 @@ static ngx_int_t ngx_http_subs_body_filter_process_buffer(ngx_http_request_t *r,
     ngx_buf_t *b);
 static ngx_int_t  ngx_http_subs_match(ngx_http_request_t *r,
     ngx_http_subs_ctx_t *ctx);
+#if (NGX_PCRE)
 static ngx_int_t ngx_http_subs_match_regex_substituion(ngx_http_request_t *r,
     sub_pair_t *pair, ngx_buf_t *b, ngx_buf_t *dst);
+#endif
 static ngx_int_t ngx_http_subs_match_fix_substituion(ngx_http_request_t *r,
     sub_pair_t *pair, ngx_buf_t *b, ngx_buf_t *dst);
 static ngx_buf_t * buffer_append_string(ngx_buf_t *b, u_char *s, size_t len,
@@ -622,11 +624,12 @@ ngx_http_subs_match(ngx_http_request_t *r, ngx_http_subs_ctx_t *ctx)
 
         /* regex substitution */
         if (pair->regex || pair->insensitive) {
+#if (NGX_PCRE)
             count = ngx_http_subs_match_regex_substituion(r, pair, src, dst);
             if (count == NGX_ERROR) {
                 goto failed;
             }
-
+#endif
         } else {
             /* fixed string substituion */
             count = ngx_http_subs_match_fix_substituion(r, pair, src, dst);
@@ -679,11 +682,11 @@ failed:
 }
 
 
+#if (NGX_PCRE)
 static ngx_int_t
 ngx_http_subs_match_regex_substituion(ngx_http_request_t *r, sub_pair_t *pair,
                                       ngx_buf_t *b, ngx_buf_t *dst)
 {
-#if (NGX_PCRE)
     ngx_str_t  line;
     ngx_log_t *log;
     ngx_int_t  rc, count = 0;
@@ -756,10 +759,8 @@ ngx_http_subs_match_regex_substituion(ngx_http_request_t *r, sub_pair_t *pair,
     }
 
     return count;
-#else
-    return 0;
-#endif
 }
+#endif
 
 
 /*
@@ -1108,18 +1109,14 @@ static ngx_int_t
 ngx_http_subs_filter_regex_compile(sub_pair_t *pair,
     ngx_http_script_compile_t *sc, ngx_conf_t *cf)
 {
-#if (NGX_PCRE)
-    ngx_int_t                   n, options;
-    ngx_uint_t                  mask;
-#endif
-    ngx_str_t                  *value;
-
-    value = cf->args->elts;
-
     /* Caseless match can only be implemented in regex. */
 #if (NGX_PCRE)
-    ngx_str_t         err;
     u_char            errstr[NGX_MAX_CONF_ERRSTR];
+    ngx_int_t         n, options;
+    ngx_str_t         err, *value;
+    ngx_uint_t        mask;
+
+    value = cf->args->elts;
 
     err.len = NGX_MAX_CONF_ERRSTR;
     err.data = errstr;
@@ -1175,6 +1172,7 @@ ngx_http_subs_filter_regex_compile(sub_pair_t *pair,
 
     return NGX_OK;
 }
+
 
 #if (NGX_PCRE)
 static ngx_int_t

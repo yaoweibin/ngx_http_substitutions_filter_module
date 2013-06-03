@@ -1,4 +1,3 @@
-
 /*
  * Author: Weibin Yao(yaoweibin@gmail.com)
  *
@@ -99,8 +98,10 @@ static ngx_int_t ngx_http_subs_body_filter_process_buffer(ngx_http_request_t *r,
     ngx_buf_t *b);
 static ngx_int_t  ngx_http_subs_match(ngx_http_request_t *r,
     ngx_http_subs_ctx_t *ctx);
+#if (NGX_PCRE)
 static ngx_int_t ngx_http_subs_match_regex_substituion(ngx_http_request_t *r,
     sub_pair_t *pair, ngx_buf_t *b, ngx_buf_t *dst);
+#endif
 static ngx_int_t ngx_http_subs_match_fix_substituion(ngx_http_request_t *r,
     sub_pair_t *pair, ngx_buf_t *b, ngx_buf_t *dst);
 static ngx_buf_t * buffer_append_string(ngx_buf_t *b, u_char *s, size_t len,
@@ -124,7 +125,9 @@ static char *ngx_http_subs_merge_conf(ngx_conf_t *cf, void *parent,
 
 static ngx_int_t ngx_http_subs_filter_init(ngx_conf_t *cf);
 
+#if (NGX_PCRE)
 static ngx_int_t ngx_http_subs_regex_capture_count(ngx_regex_t *re);
+#endif
 
 
 static ngx_command_t  ngx_http_subs_filter_commands[] = {
@@ -306,7 +309,7 @@ ngx_http_subs_init_context(ngx_http_request_t *r)
 static ngx_int_t
 ngx_http_subs_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
 {
-    ngx_int_t		           rc;
+    ngx_int_t    	           rc;
     ngx_log_t                 *log;
     ngx_chain_t               *cl, *temp;
     ngx_http_subs_ctx_t       *ctx;
@@ -621,11 +624,12 @@ ngx_http_subs_match(ngx_http_request_t *r, ngx_http_subs_ctx_t *ctx)
 
         /* regex substitution */
         if (pair->regex || pair->insensitive) {
+#if (NGX_PCRE)
             count = ngx_http_subs_match_regex_substituion(r, pair, src, dst);
             if (count == NGX_ERROR) {
                 goto failed;
             }
-
+#endif
         } else {
             /* fixed string substituion */
             count = ngx_http_subs_match_fix_substituion(r, pair, src, dst);
@@ -678,6 +682,7 @@ failed:
 }
 
 
+#if (NGX_PCRE)
 static ngx_int_t
 ngx_http_subs_match_regex_substituion(ngx_http_request_t *r, sub_pair_t *pair,
                                       ngx_buf_t *b, ngx_buf_t *dst)
@@ -755,6 +760,7 @@ ngx_http_subs_match_regex_substituion(ngx_http_request_t *r, sub_pair_t *pair,
 
     return count;
 }
+#endif
 
 
 /*
@@ -1103,16 +1109,14 @@ static ngx_int_t
 ngx_http_subs_filter_regex_compile(sub_pair_t *pair,
     ngx_http_script_compile_t *sc, ngx_conf_t *cf)
 {
-    ngx_int_t                   n, options;
-    ngx_uint_t                  mask;
-    ngx_str_t                  *value;
-
-    value = cf->args->elts;
-
     /* Caseless match can only be implemented in regex. */
 #if (NGX_PCRE)
-    ngx_str_t         err;
     u_char            errstr[NGX_MAX_CONF_ERRSTR];
+    ngx_int_t         n, options;
+    ngx_str_t         err, *value;
+    ngx_uint_t        mask;
+
+    value = cf->args->elts;
 
     err.len = NGX_MAX_CONF_ERRSTR;
     err.data = errstr;
@@ -1170,6 +1174,7 @@ ngx_http_subs_filter_regex_compile(sub_pair_t *pair,
 }
 
 
+#if (NGX_PCRE)
 static ngx_int_t
 ngx_http_subs_regex_capture_count(ngx_regex_t *re)
 {
@@ -1191,6 +1196,7 @@ ngx_http_subs_regex_capture_count(ngx_regex_t *re)
 
     return (ngx_int_t) n;
 }
+#endif
 
 
 static void *

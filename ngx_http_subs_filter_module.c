@@ -54,6 +54,7 @@ typedef struct {
     ngx_hash_t     types;
     ngx_array_t   *sub_pairs;   /* array of sub_pair_t     */
     ngx_array_t   *types_keys;  /* array of ngx_hash_key_t */
+    ngx_array_t   *bypass;      /* array of ngx_http_complex_value_t */
     size_t         line_buffer_size;
     ngx_bufs_t     bufs;
 } ngx_http_subs_loc_conf_t;
@@ -139,6 +140,13 @@ static ngx_command_t  ngx_http_subs_filter_commands[] = {
       0,
       NULL },
 
+    { ngx_string("subs_filter_bypass"),
+      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_1MORE,
+      ngx_http_set_predicate_slot,
+      NGX_HTTP_LOC_CONF_OFFSET,
+      offsetof(ngx_http_subs_loc_conf_t, bypass),
+      NULL },
+
     { ngx_string("subs_filter_types"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_1MORE,
       ngx_http_types_slot,
@@ -218,6 +226,19 @@ ngx_http_subs_header_filter(ngx_http_request_t *r)
 
     if (ngx_http_test_content_type(r, &slcf->types) == NULL) {
         return ngx_http_next_header_filter(r);
+    }
+
+    switch (ngx_http_test_predicates(r, slcf->bypass)) {
+
+    case NGX_ERROR:
+        /*pass through*/
+
+    case NGX_DECLINED:
+
+        return ngx_http_next_header_filter(r);
+
+    default: /* NGX_OK */
+        break;
     }
 
     /* Don't do substitution with the compressed content */
@@ -1219,6 +1240,7 @@ ngx_http_subs_create_conf(ngx_conf_t *cf)
      */
 
     conf->line_buffer_size = NGX_CONF_UNSET_SIZE;
+    conf->bypass = NGX_CONF_UNSET_PTR;
 
     return conf;
 }
@@ -1240,6 +1262,9 @@ ngx_http_subs_merge_conf(ngx_conf_t *cf, void *parent, void *child)
             conf->sub_pairs = prev->sub_pairs;
         }
     }
+
+    ngx_conf_merge_ptr_value(conf->bypass,
+                             prev->bypass, NULL);
 
     if (ngx_http_merge_types(cf, &conf->types_keys, &conf->types,
                              &prev->types_keys, &prev->types,

@@ -24,6 +24,7 @@
 
 			<li><a href="#subs_filter_types">subs_filter_types</a></li>
 			<li><a href="#subs_filter">subs_filter</a></li>
+			<li><a href="#subs_filter_bypass">subs_filter_bypass</a></li>
 		</ul>
 
 		<li><a href="#installation">Installation</a></li>
@@ -96,6 +97,13 @@
 </ul>
 <p>
 </p>
+<h3><a name="subs_filter_bypass">subs_filter_bypass</a></h3>
+<p><strong>syntax:</strong> <em>subs_filter_bypass $variable1 ...</em></p>
+<p><strong>default:</strong> <em>none</em></p>
+<p><strong>context:</strong> <em>http, server, location</em></p>
+<p>You can sepcify several variables with this directive. If at least one of the variable is not empty and is not equal to '0', this substitution filter will be disabled.</p>
+<p>
+</p>
 <h2><a name="installation">Installation</a></h2>
 <p>To install, get the source with subversion:</p>
 <p>git clone <a href="git://github.com/yaoweibin/ngx_http_substitutions_filter_module.git">git://github.com/yaoweibin/ngx_http_substitutions_filter_module.git</a></p>
@@ -104,10 +112,32 @@
 <p>
 </p>
 <h2><a name="known_issue">Known issue</a></h2>
-<p>*</p>
+<ul>
+<li>
+<p>Can't substitute the response header.</p>
+</li>
+</ul>
 <p>
 </p>
 <h2><a name="changes">CHANGES</a></h2>
+<p>Changes with nginx_substitutions_filter 0.6.4                                     2014-02-15</p>
+<ul>
+<li>
+<p>Now non-200 response will work</p>
+</li>
+<li>
+<p>added the subs_filter_bypass directive</p>
+</li>
+</ul>
+<p>Changes with nginx_substitutions_filter 0.6.2                                     2012-08-26</p>
+<ul>
+<li>
+<p>fixed a bug of buffer overlap</p>
+</li>
+<li>
+<p>fixed a bug with last zero buffer</p>
+</li>
+</ul>
 <p>Changes with nginx_substitutions_filter 0.6.0                                     2012-06-30</p>
 <ul>
 <li>

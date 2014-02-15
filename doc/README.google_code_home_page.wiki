@@ -30,7 +30,7 @@ location / {
 
 `context:` _http, server, location_
 
-_subs_filter_types_ is used to specify which content types should be checked for _subs_filter_. The default is only _text/html_. 
+_subs_filter_types_ is used to specify which content types should be checked for _subs_filter_. The default is only _text/html_.
 
 This module just works with plain text. If the response is compressed, it can't uncompress the response and will ignore this response. This module can be compatible with gzip filter module. But it will not work with proxy compressed response. You can disable the compressed response like this:
 
@@ -50,6 +50,16 @@ _subs_filter_ allows replacing source string(regular expression or fixed) in the
  * _o_: Just replace the first one.
  * _r_: The pattern is treated as a regular expression, default is fixed string.
 
+=== subs_filter_bypass ===
+
+`syntax:` _subs_filter_bypass $variable1 ..._
+
+`default:` _none_
+
+`context:` _http, server, location_
+
+You can sepcify several variables with this directive. If at least one of the variable is not empty and is not equal to '0', this substitution filter will be disabled.
+
 == Installation ==
 
 To install, get the source with subversion:
@@ -63,10 +73,19 @@ and then compile nginx with the following option:
 ./configure --add-module=/path/to/module
 }}}
 == Known issue ==
-
- *
+ * Can't substitute the response header.
 
 == CHANGES ==
+
+Changes with nginx_substitutions_filter 0.6.4                                     2014-02-15
+
+ * Now non-200 response will work
+ * added the subs_filter_bypass directive
+
+Changes with nginx_substitutions_filter 0.6.2                                     2012-08-26
+
+ * fixed a bug of buffer overlap
+ * fixed a bug with last zero buffer
 
 Changes with nginx_substitutions_filter 0.6.0                                     2012-06-30
 
@@ -77,7 +96,7 @@ Changes with nginx_substitutions_filter 0.5.2                                   
  * do many optimizing for this module
  * fix a bug of buffer overlap
  * fix a segment fault bug when output chain return NGX_AGAIN.
- * fix a bug about last buffer with no linefeed. This may cause segment fault. Thanks for Josef Fröhle 
+ * fix a bug about last buffer with no linefeed. This may cause segment fault. Thanks for Josef Fröhle
 
 Changes with nginx_substitutions_filter 0.5                                       2010-04-15
 

@@ -63,6 +63,17 @@ nginx_substitutions_filter
     *   *r*: The pattern is treated as a regular expression, default is
         fixed string.
 
+   subs_filter_bypass
+    syntax: *subs_filter_bypass $variable1 ...*
+
+    default: *none*
+
+    context: *http, server, location*
+
+    You can sepcify several variables with this directive. If at least one
+    of the variable is not empty and is not equal to '0', this substitution
+    filter will be disabled.
+
   Installation
     To install, get the source with subversion:
 
@@ -74,13 +85,20 @@ nginx_substitutions_filter
     ./configure --add-module=/path/to/module
 
   Known issue
-    *
+    *   Can't substitute the response header.
 
   CHANGES
+    Changes with nginx_substitutions_filter 0.6.4 2014-02-15
+
+    *   Now non-200 response will work
+
+    *   added the subs_filter_bypass directive
+
     Changes with nginx_substitutions_filter 0.6.2 2012-08-26
 
-    *)  fixed a bug of buffer overlap
-    *)  fixed a bug with last zero buffer
+    *   fixed a bug of buffer overlap
+
+    *   fixed a bug with last zero buffer
 
     Changes with nginx_substitutions_filter 0.6.0 2012-06-30
 

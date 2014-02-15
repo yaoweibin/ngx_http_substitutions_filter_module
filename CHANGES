@@ -1,4 +1,9 @@
 
+Changes with nginx_substitutions_filter 0.6.4                                     2014-02-15
+
+    *) Now non-200 response will work
+    *) added the subs_filter_bypass directive
+
 Changes with nginx_substitutions_filter 0.6.2                                     2012-08-26
 
     *) fixed a bug of buffer overlap

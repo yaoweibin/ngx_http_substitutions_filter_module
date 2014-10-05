@@ -32,7 +32,9 @@ nginx_substitutions_filter
     context: *http, server, location*
 
     *subs_filter_types* is used to specify which content types should be
-    checked for *subs_filter*. The default is only *text/html*.
+    checked for *subs_filter*, in addition to *text/html*.
+    
+    The default is only *text/html*.
 
     This module just works with plain text. If the response is compressed,
     it can't uncompress the response and will ignore this response. This

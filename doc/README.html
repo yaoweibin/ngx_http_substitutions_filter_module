@@ -31,6 +31,7 @@
 		<li><a href="#known_issue">Known issue</a></li>
 		<li><a href="#changes">CHANGES</a></li>
 		<li><a href="#reporting_a_bug">Reporting a bug</a></li>
+		<li><a href="#copyright___license">Copyright &amp; License</a></li>
 	</ul>
 
 </ul>
@@ -71,7 +72,7 @@
 <p><strong>syntax:</strong> <em>subs_filter_types mime-type [mime-types] </em></p>
 <p><strong>default:</strong> <em>subs_filter_types text/html</em></p>
 <p><strong>context:</strong> <em>http, server, location</em></p>
-<p><em>subs_filter_types</em> is used to specify which content types should be checked for <em>subs_filter</em>. The default is only <em>text/html</em>.</p>
+<p><em>subs_filter_types</em> is used to specify which content types should be checked for <em>subs_filter</em>, in addition to *text/html*. The default is only <em>text/html</em>.</p>
 <p>This module just works with plain text. If the response is compressed, it can't uncompress the response and will ignore this response. This module can be compatible with gzip filter module. But it will not work with proxy compressed response. You can disable the compressed response like this:</p>
 <p>proxy_set_header Accept-Encoding ``'';</p>
 <p>
@@ -193,6 +194,41 @@
 </p>
 <h2><a name="reporting_a_bug">Reporting a bug</a></h2>
 <p>Questions/patches may be directed to Weibin Yao, <a href="mailto:yaoweibin@gmail.com.">yaoweibin@gmail.com.</a></p>
+<p>
+</p>
+<h2><a name="copyright___license">Copyright &amp; License</a></h2>
+<p>This module is licensed under the BSD license.</p>
+<p>Copyright (C) 2014 by Weibin Yao &lt;<a href="mailto:yaoweibin@gmail.com">yaoweibin@gmail.com</a>&gt;.</p>
+<p>All rights reserved.</p>
+<p>Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are
+met:</p>
+<ul>
+<li>
+<pre>
+  Redistributions of source code must retain the above copyright</pre>
+</ul>
+<pre>
+    notice, this list of conditions and the following disclaimer.</pre>
+<ul>
+<li>
+<pre>
+  Redistributions in binary form must reproduce the above copyright</pre>
+</ul>
+<pre>
+    notice, this list of conditions and the following disclaimer in the
+    documentation and/or other materials provided with the distribution.</pre>
+<p>THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ``AS
+IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.</p>
 
 </body>
 

@@ -14,6 +14,7 @@ location / {
     subs_filter_types text/html text/css text/xml;
     subs_filter st(\d*).example.com $1.example.com ir;
     subs_filter a.example.com s.example.com;
+    subs_filter http://$host https://$host;
 
 }
 }}}
@@ -44,8 +45,8 @@ proxy_set_header Accept-Encoding "";
 
 `context:` _http, server, location_
 
-_subs_filter_ allows replacing source string(regular expression or fixed) in the nginx response with destination string. Substitution text may contain variables. More than one substitution rules per location is supported. The meaning of the third flags are:
- * _g_(default): Replace all the match strings.
+_subs_filter_ allows replacing source string(regular expression or fixed) in the nginx response with destination string. The variables in matching text is only avaiable under fixed string mode, which means the matching text could not contain variables if it is a regular expression. Substitution text may contain variables. More than one substitution rules per location is supported. The meaning of the third flags are:
+ * _g_ (default): Replace all the match strings.
  * _i_: Perform a case-insensitive match.
  * _o_: Just replace the first one.
  * _r_: The pattern is treated as a regular expression, default is fixed string.
@@ -70,7 +71,7 @@ git clone git://github.com/yaoweibin/ngx_http_substitutions_filter_module.git
 and then compile nginx with the following option:
 
 {{{
-./configure --add-module=/path/to/module
+./configure --add-module=/path/to/ngx_http_substitutions_filter_module
 }}}
 == Known issue ==
  * Can't substitute the response header.

@@ -36,6 +36,8 @@ typedef struct {
     ngx_flag_t     has_captured;
 
     ngx_str_t      match;
+    ngx_array_t   *match_lengths;
+    ngx_array_t   *match_values;
 #if (NGX_PCRE)
     ngx_regex_t   *match_regex;
     int           *captures;
@@ -644,7 +646,7 @@ ngx_http_subs_match(ngx_http_request_t *r, ngx_http_subs_ctx_t *ctx)
         }
 
         /* regex substitution */
-        if (pair->regex || pair->insensitive) {
+        if (pair->regex) {
 #if (NGX_PCRE)
             count = ngx_http_subs_match_regex_substituion(r, pair, src, dst);
             if (count == NGX_ERROR) {
@@ -652,6 +654,16 @@ ngx_http_subs_match(ngx_http_request_t *r, ngx_http_subs_ctx_t *ctx)
             }
 #endif
         } else {
+          
+            if (pair->match.data == NULL) {
+                if (ngx_http_script_run(r, &pair->match,
+                                        pair->match_lengths->elts, 0,
+                                        pair->match_values->elts) == NULL)
+                {
+                  goto failed;
+                }
+            }
+          
             /* fixed string substituion */
             count = ngx_http_subs_match_fix_substituion(r, pair, src, dst);
             if (count == NGX_ERROR) {
@@ -831,13 +843,18 @@ ngx_http_subs_match_fix_substituion(ngx_http_request_t *r,
     u_char      *sub_start;
     ngx_int_t    count = 0;
 
-    while(b->pos < b->last) {
+    while(b->pos < b->last)
+    {
         if (pair->once && pair->matched) {
             break;
         }
-
-        sub_start = subs_memmem(b->pos, b->last - b->pos,
-                                pair->match.data, pair->match.len);
+        if (pair->insensitive) {
+            sub_start = ngx_strlcasestrn(b->pos, b->last,
+                                         pair->match.data, pair->match.len - 1);
+        } else {
+            sub_start = subs_memmem(b->pos, b->last - b->pos,
+                                    pair->match.data, pair->match.len);
+        }
         if (sub_start == NULL) {
             break;
         }
@@ -1064,20 +1081,69 @@ ngx_http_subs_filter( ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         return NGX_CONF_ERROR;
     }
     ngx_memzero(pair, sizeof(sub_pair_t));
+  
+    // judge the mode first
+    if (cf->args->nelts > 3) {
+      
+        option = &value[3];
+        for(i = 0; i < option->len; i++) {
+          
+            switch (option->data[i]) {
+              case 'i':
+                pair->insensitive = 1;
+                break;
+              
+              case 'o':
+                pair->once = 1;
+                break;
+              
+              case 'r':
+                pair->regex = 1;
+                break;
+              
+              case 'g':
+              default:
+                continue;
+            }
+        }
+    }
 
-    pair->match = value[1];
+    n = ngx_http_script_variables_count(&value[1]);
+    if (n != 0) {
+        if (pair->regex) {
+            ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                               "match part cannot contain variable "
+                               "during regex mode");
+            return NGX_CONF_ERROR;
+        }
+        ngx_memzero(&sc, sizeof(ngx_http_script_compile_t));
+        
+        sc.cf               = cf;
+        sc.source           = &value[1];
+        sc.lengths          = &pair->match_lengths;
+        sc.values           = &pair->match_values;
+        sc.variables        = n;
+        sc.complete_lengths = 1;
+        sc.complete_values  = 1;
+        
+        if (ngx_http_script_compile(&sc) != NGX_OK) {
+            return NGX_CONF_ERROR;
+        }
+    } else {
+        pair->match = value[1];
+    }
 
     n = ngx_http_script_variables_count(&value[2]);
     if (n != 0) {
         ngx_memzero(&sc, sizeof(ngx_http_script_compile_t));
 
-        sc.cf = cf;
-        sc.source = &value[2];
-        sc.lengths = &pair->sub_lengths;
-        sc.values = &pair->sub_values;
-        sc.variables = n;
+        sc.cf               = cf;
+        sc.source           = &value[2];
+        sc.lengths          = &pair->sub_lengths;
+        sc.values           = &pair->sub_values;
+        sc.variables        = n;
         sc.complete_lengths = 1;
-        sc.complete_values = 1;
+        sc.complete_values  = 1;
 
         if (ngx_http_script_compile(&sc) != NGX_OK) {
             return NGX_CONF_ERROR;
@@ -1092,31 +1158,8 @@ ngx_http_subs_filter( ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         pair->sub = value[2];
     }
 
-    if (cf->args->nelts > 3) {
-        option = &value[3];
-        for(i = 0; i < option->len; i++) {
 
-            switch (option->data[i]){
-            case 'i':
-                pair->insensitive = 1;
-                break;
-
-            case 'o':
-                pair->once = 1;
-                break;
-
-            case 'r':
-                pair->regex = 1;
-                break;
-
-            case 'g':
-            default:
-                continue;
-            }
-        }
-    }
-
-    if (pair->regex || pair->insensitive) {
+    if (pair->regex) {
         if (ngx_http_subs_filter_regex_compile(pair, &sc, cf) == NGX_ERROR) {
             return NGX_CONF_ERROR;
         }

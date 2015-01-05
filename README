@@ -16,7 +16,7 @@ nginx_substitutions_filter
         subs_filter_types text/html text/css text/xml;
         subs_filter st(\d*).example.com $1.example.com ir;
         subs_filter a.example.com s.example.com;
-
+        subs_filter http://$host https://$host;
     }
 
   Directives
@@ -51,9 +51,12 @@ nginx_substitutions_filter
     context: *http, server, location*
 
     *subs_filter* allows replacing source string(regular expression or
-    fixed) in the nginx response with destination string. Substitution text
-    may contain variables. More than one substitution rules per location is
-    supported. The meaning of the third flags are:
+    fixed) in the nginx response with destination string. The variables 
+    in matching text is only avaiable under fixed string mode, which means 
+    the matching text could not contain variables if it is a regular 
+    expression. Substitution text may contain variables. More than one 
+    substitution rules per location is supported. 
+    The meaning of the third flags are:
 
     *   *g*(default): Replace all the match strings.
 

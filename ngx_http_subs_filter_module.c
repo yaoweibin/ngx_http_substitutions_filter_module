@@ -245,7 +245,9 @@ ngx_http_subs_header_filter(ngx_http_request_t *r)
 
     /* Don't do substitution with the compressed content */
     if (r->headers_out.content_encoding
-        && r->headers_out.content_encoding->value.len) {
+        && r->headers_out.content_encoding->value.len
+        && ngx_strncasecmp(r->headers_out.content_encoding->value.data,
+                            (u_char *) "identity", 8) != 0) {
 
         ngx_log_error(NGX_LOG_WARN, r->connection->log, 0,
                       "http subs filter header ignored, this may be a "

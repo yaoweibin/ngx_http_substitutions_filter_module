@@ -1111,13 +1111,7 @@ ngx_http_subs_filter( ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     }
 
     n = ngx_http_script_variables_count(&value[1]);
-    if (n != 0) {
-        if (pair->regex) {
-            ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
-                               "match part cannot contain variable "
-                               "during regex mode");
-            return NGX_CONF_ERROR;
-        }
+    if (n != 0 && !pair->regex) {
         ngx_memzero(&sc, sizeof(ngx_http_script_compile_t));
         
         sc.cf               = cf;
@@ -1132,6 +1126,11 @@ ngx_http_subs_filter( ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
             return NGX_CONF_ERROR;
         }
     } else {
+        if (n != 0) {
+            ngx_conf_log_error(NGX_LOG_WARN, cf, 0,
+                               "match part cannot contain variable "
+                               "during regex mode");
+        }
         pair->match = value[1];
     }
 

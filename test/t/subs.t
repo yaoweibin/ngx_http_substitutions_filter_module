@@ -24,8 +24,7 @@ __DATA__
 --- config
     location / {
         subs_filter 'taobao\.com' 'yaoweibin' ir;
-        proxy_set_header Host 'www.taobao.com';
-        proxy_pass http://backends;
+        proxy_pass http://yaoweibin.net:8080/test/subs/taobao.htm;
     }
 --- request
     GET /
@@ -44,7 +43,7 @@ __DATA__
         gzip on;
         gzip_http_version 1.0;
         proxy_set_header Accept-Encoding "";
-        proxy_pass http://yaoweibin.cn/test/subs/index.htm;
+        proxy_pass http://yaoweibin.net:8080/test/subs/index.htm;
         subs_filter 'taobao\.com' 'yaoweibin' ir;
     }
 --- request

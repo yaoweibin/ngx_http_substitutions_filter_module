@@ -24,8 +24,7 @@ __DATA__
 
     location / {
         subs_filter 'taobao.com' 'yaoweibin';
-        proxy_set_header Host 'www.taobao.com';
-        proxy_pass http://backends;
+        proxy_pass http://yaoweibin.net:8080/test/subs/taobao.htm;
     }
 --- request
     GET /

@@ -74,7 +74,7 @@ nginx_substitutions_filter
 
     context: *http, server, location*
 
-    You can sepcify several variables with this directive. If at least one
+    You can specify several variables with this directive. If at least one
     of the variable is not empty and is not equal to '0', this substitution
     filter will be disabled.
 
@@ -117,7 +117,7 @@ nginx_substitutions_filter
     *   fix a segment fault bug when output chain return NGX_AGAIN.
 
     *   fix a bug about last buffer with no linefeed. This may cause segment
-        fault. Thanks for Josef Fröhle
+        fault. Thanks for Josef FrÃ¶hle
 
     Changes with nginx_substitutions_filter 0.5 2010-04-15
 
